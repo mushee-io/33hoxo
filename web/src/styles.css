@@ -40,3 +40,7 @@ input,select{width:100%;border:1px solid #2b3037;border-radius:12px;background:#
 .protocol-strip{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:18px;overflow:hidden}.protocol-strip div{padding:17px;border-right:1px solid var(--line);background:#0c0e11}.protocol-strip div:last-child{border-right:0}.protocol-strip strong,.protocol-strip span{display:block}.protocol-strip strong{font-size:12px}.protocol-strip span{font-size:11px;color:#717985;margin-top:5px}
 @media(max-width:900px){.hero,.grid,.proof-grid{grid-template-columns:1fr}.hero-proof{margin-top:0}.settlement-panel{align-items:flex-start;flex-direction:column}.protocol-strip{grid-template-columns:1fr 1fr}.network-cluster .neutral,.ghost-link{display:none}}
 @media(max-width:600px){.shell{padding:36px 14px 60px}.topbar{padding:0 14px}.hero h1{font-size:52px}.form-grid{grid-template-columns:1fr}.panel{padding:18px}.protocol-strip{grid-template-columns:1fr}.protocol-strip div{border-right:0;border-bottom:1px solid var(--line)}}
+
+.wallet-button{border:1px solid #2e343c;border-radius:999px;background:#111419;color:#c6cdd7;padding:8px 11px;font-size:12px;font-weight:700}
+.wallet-button.connected{border-color:#315c42;color:#8ef1b5;background:#0d1812}
+.proof-link{font-size:12px;color:#8ef1b5;text-decoration:none;white-space:nowrap}
