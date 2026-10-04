@@ -1,5 +1,6 @@
 import type { Hex } from "../protocol/hex.js";
 import { randomHex } from "../protocol/hex.js";
+import { validateIntent } from "../protocol/intent.js";
 import type { ConfidentialEnvelopeV1, ConfidentialIntentV1, PublicIntentRecord, ShutterEncryptionData } from "../protocol/types.js";
 import { encryptConfidentialIntent } from "../shutter/crypto.js";
 import { ShutterApiClient } from "../shutter/client.js";
@@ -14,7 +15,15 @@ export type SealResult = { envelope: ConfidentialEnvelopeV1; record: PublicInten
 export class ConfidentialMarketsClient {
   constructor(private readonly shutter: ShutterApiClient, private readonly gateway: ConfidentialGatewayTransport) {}
 
-  async sealIntent(intent: ConfidentialIntentV1): Promise<SealResult> {
+  async sealIntent(
+    intent: ConfidentialIntentV1,
+    now = Math.floor(Date.now() / 1000),
+  ): Promise<SealResult> {
+    validateIntent(intent);
+    if (now >= intent.revealAt) {
+      throw new Error("Cannot seal an intent after its reveal window has opened.");
+    }
+
     const identityPrefix = randomHex(32);
     const registration = await this.shutter.registerTimeIdentity({
       decryptionTimestamp: intent.revealAt,
@@ -38,7 +47,7 @@ export class ConfidentialMarketsClient {
       network: this.shutter.network,
       encryptionData,
     });
-    return { envelope, record: await this.gateway.submit(envelope) };
+    return { envelope, record: await this.gateway.submit(envelope, now) };
   }
 
   status(commitment: Hex): Promise<PublicIntentRecord | null> {

@@ -15,7 +15,8 @@ export class InMemoryCommitmentStore implements CommitmentStore {
   private readonly records = new Map<Hex, PublicIntentRecord>();
 
   async get(commitment: Hex): Promise<PublicIntentRecord | null> {
-    return this.records.get(commitment) ?? null;
+    const record = this.records.get(commitment);
+    return record ? structuredClone(record) : null;
   }
 
   async put(record: PublicIntentRecord): Promise<void> {
@@ -34,9 +35,12 @@ export class InMemoryCommitmentStore implements CommitmentStore {
       ...current,
       state,
       updatedAt: options.now ?? Math.floor(Date.now() / 1000),
-      ...(options.failureCode ? { failureCode: options.failureCode } : {}),
     };
-    this.records.set(commitment, next);
+
+    if (options.failureCode) next.failureCode = options.failureCode;
+    else delete next.failureCode;
+
+    this.records.set(commitment, structuredClone(next));
     return structuredClone(next);
   }
 }
