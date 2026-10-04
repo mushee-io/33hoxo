@@ -1,0 +1,24 @@
+{
+  "name": "@mushee/33hoxo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable confidential-market infrastructure powered by Shutter threshold encryption",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@shutter-network/shutter-sdk": "0.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.2.4"
+  }
+}
