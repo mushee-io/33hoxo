@@ -21,6 +21,10 @@ export class ConfidentialMarketsClient {
       identityPrefix,
     });
 
+    if (registration.identity_prefix.toLowerCase() !== identityPrefix.toLowerCase()) {
+      throw new Error("Shutter registration returned a different identity prefix.");
+    }
+
     const encryptionData: ShutterEncryptionData = {
       eon: registration.eon,
       eonKey: registration.eon_key,

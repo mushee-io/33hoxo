@@ -9,42 +9,24 @@ const intent:ConfidentialIntentV1={
 };
 
 describe("Mary Jane adapter",()=>{
-  it("maps to order-place request",async()=>{
-    let capturedBody: unknown;
-    const fetchImpl: typeof fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      capturedBody = init?.body ? JSON.parse(String(init.body)) : undefined;
-      return new Response(JSON.stringify({
-        transactionBase64:"dHhieXRlcw==",
-        lastValidBlockHeight:99
-      }),{status:200,headers:{"content-type":"application/json"}});
+  it("maps to order-place request before wallet execution",async()=>{
+    let capturedBody:unknown;
+    const fetchImpl:typeof fetch=vi.fn(async(_input:RequestInfo|URL,init?:RequestInit)=>{
+      capturedBody=init?.body?JSON.parse(String(init.body)):undefined;
+      return new Response(JSON.stringify({transactionBase64:"dHhieXRlcw==",lastValidBlockHeight:99}),
+        {status:200,headers:{"content-type":"application/json"}});
     }) as unknown as typeof fetch;
 
-    const wallet={
-      signAndSend:vi.fn(async()=>"solana-signature"),
-      confirm:vi.fn(async()=>true)
-    };
+    const wallet={signAndSend:vi.fn(async()=>"solana-signature"),confirm:vi.fn(async()=>true)};
+    const adapter=new MaryJaneSolanaAdapter({orderPlaceUrl:"https://example.test/api/order-place",wallet,fetchImpl});
 
-    const adapter=new MaryJaneSolanaAdapter({
-      orderPlaceUrl:"https://example.test/api/order-place",
-      wallet,
-      fetchImpl
+    const plan=await adapter.prepare(intent,"0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+    expect(capturedBody).toEqual({
+      wallet:"Wallet111",market:"Market111",side:"YES",kind:"BUY",priceBps:6200,sharesBaseUnits:"500000000"
     });
 
-    const plan=await adapter.prepare(
-      intent,
-      "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-    );
     const submitted=await adapter.execute(plan);
     const receipt=await adapter.confirm(submitted);
-
-    expect(capturedBody).toEqual({
-      wallet:"Wallet111",
-      market:"Market111",
-      side:"YES",
-      kind:"BUY",
-      priceBps:6200,
-      sharesBaseUnits:"500000000"
-    });
     expect(receipt.status).toBe("CONFIRMED");
     expect(receipt.transactionId).toBe("solana-signature");
   });

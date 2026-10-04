@@ -30,8 +30,9 @@ export class ConfidentialIntentGateway {
     envelope: ConfidentialEnvelopeV1,
     now = Math.floor(Date.now() / 1000),
   ): Promise<PublicIntentRecord> {
-    this.validateEnvelope(envelope, now);
+    assertHex(envelope?.commitment, "commitment");
 
+    // Exact retries remain idempotent even after the reveal window opens.
     const existing = await this.store.get(envelope.commitment);
     if (existing) {
       if (envelopeFingerprint(existing.envelope) !== envelopeFingerprint(envelope)) {
@@ -39,6 +40,8 @@ export class ConfidentialIntentGateway {
       }
       return existing;
     }
+
+    this.validateEnvelope(envelope, now);
 
     const record: PublicIntentRecord = {
       commitment: envelope.commitment,
@@ -62,6 +65,9 @@ export class ConfidentialIntentGateway {
   ): Promise<PublicIntentRecord> {
     const record = await this.store.get(commitment);
     if (!record) throw new Error("Unknown commitment.");
+    if (now >= record.envelope.revealAt) {
+      throw new Error("Cannot cancel after the reveal window has opened.");
+    }
     if (!["SEALED", "WAITING"].includes(record.state)) {
       throw new Error(`Cannot cancel an intent in state ${record.state}.`);
     }
@@ -77,9 +83,7 @@ export class ConfidentialIntentGateway {
     assertHex(envelope.shutter.identity, "Shutter identity");
     assertHex(envelope.shutter.identityPrefix, "Shutter identity prefix");
 
-    if (!/^0x[0-9a-f]{64}$/i.test(envelope.commitment)) {
-      throw new Error("commitment must be a 32-byte SHA-256 hash.");
-    }
+    if (!/^0x[0-9a-f]{64}$/i.test(envelope.commitment)) throw new Error("commitment must be a 32-byte SHA-256 hash.");
     if (!envelope.application.trim()) throw new Error("application is required.");
     if (!envelope.sourceChain.trim()) throw new Error("sourceChain is required.");
     if (!envelope.market.trim()) throw new Error("market is required.");
