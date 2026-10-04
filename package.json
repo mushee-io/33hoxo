@@ -1,12 +1,19 @@
 {
   "name": "@mushee/33hoxo",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Reusable confidential-market infrastructure powered by Shutter threshold encryption",
   "type": "module",
-  "engines": {
-    "node": ">=20"
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "files": ["dist", "README.md", "docs"],
+  "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
