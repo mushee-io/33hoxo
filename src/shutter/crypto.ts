@@ -1,4 +1,3 @@
-import { decrypt, encryptData } from "@shutter-network/shutter-sdk";
 import { createIntentCommitment } from "../protocol/commitment.js";
 import { decodeIntent, encodeIntent } from "../protocol/intent.js";
 import { assertHex, randomHex, type Hex } from "../protocol/hex.js";
@@ -8,6 +7,69 @@ import type {
   ShutterEncryptionData,
 } from "../protocol/types.js";
 import type { ShutterNetwork } from "./client.js";
+
+type ShutterSdk = {
+  encryptData(
+    message: Hex,
+    identityPreimage: Hex,
+    eonKey: Hex,
+    sigma: Hex,
+  ): Promise<Hex>;
+  decrypt(ciphertext: Hex, decryptionKey: Hex): Promise<Hex>;
+};
+
+let sdkPromise: Promise<ShutterSdk> | null = null;
+
+async function loadShutterSdk(): Promise<ShutterSdk> {
+  if (sdkPromise) return sdkPromise;
+
+  sdkPromise = (async () => {
+    const isNode =
+      typeof process !== "undefined" &&
+      typeof process.versions?.node === "string" &&
+      typeof window === "undefined";
+
+    if (isNode) {
+      // The upstream 0.0.2 ESM BLST bundle contains a dynamic require("fs"),
+      // which fails in Node ESM/Vitest. Its published CommonJS export supports
+      // the Node BLST path, so load that condition explicitly.
+      const nodeModuleSpecifier = "node:module";
+      const { createRequire } = await import(
+        /* @vite-ignore */ nodeModuleSpecifier
+      );
+      const require = createRequire(import.meta.url);
+      return require("@shutter-network/shutter-sdk") as ShutterSdk;
+    }
+
+    return (await import("@shutter-network/shutter-sdk")) as ShutterSdk;
+  })();
+
+  return sdkPromise;
+}
+
+export async function encryptShutterData(
+  message: Hex,
+  identityPreimage: Hex,
+  eonKey: Hex,
+  sigma: Hex,
+): Promise<Hex> {
+  assertHex(message, "message");
+  assertHex(identityPreimage, "identityPreimage");
+  assertHex(eonKey, "eonKey");
+  assertHex(sigma, "sigma");
+  const sdk = await loadShutterSdk();
+  return sdk.encryptData(message, identityPreimage, eonKey, sigma);
+}
+
+export async function decryptShutterData(
+  ciphertext: Hex,
+  decryptionKey: Hex,
+): Promise<Hex> {
+  assertHex(ciphertext, "ciphertext");
+  assertHex(decryptionKey, "decryptionKey");
+  const sdk = await loadShutterSdk();
+  return sdk.decrypt(ciphertext, decryptionKey);
+}
 
 export async function encryptConfidentialIntent(input: {
   intent: ConfidentialIntentV1;
@@ -19,14 +81,12 @@ export async function encryptConfidentialIntent(input: {
   const commitment = await createIntentCommitment(intent);
   const sigma = randomHex(32);
 
-  // Shutter calls the registered identity the identity preimage in the SDK.
-  const ciphertext = await encryptData(
+  const ciphertext = await encryptShutterData(
     message,
     encryptionData.identity,
     encryptionData.eonKey,
     sigma,
   );
-  assertHex(ciphertext, "ciphertext");
 
   return {
     version: 1,
@@ -54,8 +114,6 @@ export async function decryptConfidentialIntent(
   envelope: ConfidentialEnvelopeV1,
   decryptionKey: Hex,
 ): Promise<ConfidentialIntentV1> {
-  assertHex(decryptionKey, "decryptionKey");
-  const decrypted = await decrypt(envelope.ciphertext, decryptionKey);
-  assertHex(decrypted, "decrypted intent");
+  const decrypted = await decryptShutterData(envelope.ciphertext, decryptionKey);
   return decodeIntent(decrypted);
 }

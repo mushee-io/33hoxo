@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decrypt, encryptData } from "@shutter-network/shutter-sdk";
+import { decryptShutterData, encryptShutterData } from "../src/index.js";
 
 describe("official Shutter SDK compatibility vector", () => {
   it("matches Shutter's published one-byte encryption/decryption vector", async () => {
@@ -15,8 +15,13 @@ describe("official Shutter SDK compatibility vector", () => {
     const decryptionKey =
       "0x81cfcfceebfc69b3cb3fe074f4b3751e7844f6d62b3040563ccb3a2430110f259d109519c73682735f4c02651492c740";
 
-    const ciphertext = await encryptData(message, identity, eonPublicKey, sigma);
+    const ciphertext = await encryptShutterData(
+      message,
+      identity,
+      eonPublicKey,
+      sigma,
+    );
     expect(ciphertext).toBe(expectedCipher);
-    expect(await decrypt(ciphertext, decryptionKey)).toBe(message);
+    expect(await decryptShutterData(ciphertext, decryptionKey)).toBe(message);
   });
 });

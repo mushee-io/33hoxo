@@ -13,8 +13,6 @@ into the application's public/static root so they are served as:
 
 For Vite applications, exclude `@shutter-network/shutter-sdk` from dependency optimization if the bundler reports an incompatibility.
 
-Example:
-
 ```ts
 export default defineConfig({
   optimizeDeps: {
@@ -23,8 +21,19 @@ export default defineConfig({
 });
 ```
 
+## Node / ESM compatibility
+
+Shutter SDK 0.0.2 publishes both ESM and CommonJS builds. Its ESM BLST bundle can fail under Node ESM with a dynamic-`require("fs")` error.
+
+33HOXO therefore loads:
+
+- the SDK's browser/ESM path in browsers;
+- the SDK's CommonJS export in Node.
+
+CI pins an official Shutter encryption/decryption vector to verify this compatibility wrapper.
+
 ## Mary Jane integration check
 
-The current Mary Jane `public/` directory does not contain these Shutter SDK assets. They must be installed before browser-side 33HOXO encryption can be considered live.
+The current Mary Jane `public/` directory does not contain the Shutter SDK browser assets. They must be installed before browser-side 33HOXO encryption can be considered live.
 
-Node-based tests do not catch this because the browser-only WASM loading path is not exercised in CI.
+Node tests cannot prove browser asset serving, so the deployed Mary Jane application still needs a browser smoke test.
