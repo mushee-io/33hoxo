@@ -1,4 +1,5 @@
 import "../src/styles.css";
+import { Connection, Transaction, VersionedTransaction } from "@solana/web3.js";
 import {
   ShutterApiClient,
   ShutterApiError,
@@ -13,7 +14,21 @@ import type {
   ConfidentialIntentV1,
 } from "../../dist/index.js";
 
-type DemoState = "IDLE" | "REGISTERING" | "ENCRYPTING" | "SEALED" | "WAITING" | "REVEALING" | "VERIFIED" | "ERROR";
+type DemoState = "IDLE" | "REGISTERING" | "ENCRYPTING" | "SEALED" | "WAITING" | "REVEALING" | "VERIFIED" | "EXECUTING" | "EXECUTED" | "ERROR";
+
+type SolanaProvider = {
+  isPhantom?: boolean;
+  publicKey?: { toString(): string } | null;
+  connect(options?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: { toString(): string } }>;
+  signAndSendTransaction(transaction: Transaction | VersionedTransaction): Promise<{ signature: string } | string>;
+};
+
+declare global {
+  interface Window {
+    solana?: SolanaProvider;
+    phantom?: { solana?: SolanaProvider };
+  }
+}
 
 const shutterProxyFetch: typeof fetch = async (input, init) => {
   const raw = typeof input === "string"
@@ -38,6 +53,9 @@ let revealed: ConfidentialIntentV1 | null = null;
 let countdownTimer: number | null = null;
 let revealTimer: number | null = null;
 let lastError = "";
+let walletProvider: SolanaProvider | null = null;
+let walletAddress = "";
+const solana = new Connection("https://api.devnet.solana.com", "confirmed");
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing app root.");
@@ -54,6 +72,7 @@ app.innerHTML = `
     <div class="network-cluster">
       <div id="networkStatus" class="status-pill"><i></i> Shutter Chiado · checking</div>
       <div class="status-pill neutral">Protocol v1</div>
+      <button id="walletButton" class="wallet-button">Connect wallet</button>
       <a class="ghost-link" href="https://github.com/mushee-io/33hoxo" target="_blank" rel="noreferrer">GitHub ↗</a>
     </div>
   </header>
@@ -206,6 +225,7 @@ app.innerHTML = `
       <div class="settlement-actions">
         <span id="settlementStatus" class="settlement-status">Awaiting verified intent</span>
         <button id="settleButton" class="secondary" disabled>Settle on Solana</button>
+        <a id="solanaProofLink" class="proof-link hidden" target="_blank" rel="noreferrer">View transaction ↗</a>
       </div>
     </section>
 
@@ -227,6 +247,8 @@ const $ = <T extends HTMLElement>(id: string) => {
 const sealButton = $<HTMLButtonElement>("sealButton");
 const settleButton = $<HTMLButtonElement>("settleButton");
 const copyProof = $<HTMLButtonElement>("copyProof");
+const walletButton = $<HTMLButtonElement>("walletButton");
+const solanaProofLink = $<HTMLAnchorElement>("solanaProofLink");
 
 function setState(next: DemoState, message = "") {
   state = next;
@@ -239,6 +261,122 @@ function setState(next: DemoState, message = "") {
     const itemIndex = order.indexOf(item.dataset.step || "");
     item.classList.toggle("complete", currentIndex > itemIndex || next === "VERIFIED");
   });
+}
+
+function getProvider(): SolanaProvider | null {
+  return window.phantom?.solana ?? window.solana ?? null;
+}
+
+function updateSettlementAvailability() {
+  if (state === "VERIFIED" && revealed) {
+    if (walletAddress) {
+      settleButton.disabled = false;
+      settleButton.textContent = "Settle on Solana";
+      $("settlementStatus").textContent = "Verified · wallet connected";
+    } else {
+      settleButton.disabled = true;
+      settleButton.textContent = "Connect wallet to settle";
+      $("settlementStatus").textContent = "Verified · connect Solana wallet";
+    }
+  }
+}
+
+async function connectWallet() {
+  const provider = getProvider();
+  if (!provider) {
+    throw new Error("No Solana wallet detected. Install Phantom or another compatible Solana wallet.");
+  }
+  const result = await provider.connect();
+  walletProvider = provider;
+  walletAddress = result.publicKey.toString();
+  ($<HTMLInputElement>("trader")).value = walletAddress;
+  walletButton.textContent = walletAddress.slice(0,4) + "…" + walletAddress.slice(-4);
+  walletButton.classList.add("connected");
+  updateSettlementAvailability();
+}
+
+function decodeBase64Transaction(value: string): Transaction | VersionedTransaction {
+  const binary = atob(value);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  try {
+    return VersionedTransaction.deserialize(bytes);
+  } catch {
+    return Transaction.from(bytes);
+  }
+}
+
+async function settleVerifiedIntent() {
+  if (!revealed || !envelope) throw new Error("No verified intent is ready for settlement.");
+  if (!walletProvider || !walletAddress) {
+    await connectWallet();
+  }
+  if (!walletProvider || !walletAddress) throw new Error("Wallet connection failed.");
+
+  setState("EXECUTING", "Preparing the Mary Jane Solana transaction…");
+  settleButton.disabled = true;
+  settleButton.textContent = "Preparing transaction…";
+
+  const response = await fetch("/api/maryjane", {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      wallet: walletAddress,
+      market: revealed.market,
+      side: revealed.outcome,
+      kind: revealed.action,
+      priceBps: revealed.priceBps,
+      sharesBaseUnits: revealed.quantityBaseUnits,
+    }),
+  });
+
+  const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) {
+    const message = typeof body.error === "string" ? body.error : "Mary Jane order preparation failed.";
+    throw new Error(message);
+  }
+
+  const transactionBase64 = body.transactionBase64;
+  if (typeof transactionBase64 !== "string" || !transactionBase64) {
+    throw new Error("Mary Jane did not return an unsigned Solana transaction.");
+  }
+
+  setState("EXECUTING", "Transaction prepared. Approve the Solana transaction in your wallet…");
+  settleButton.textContent = "Approve in wallet";
+
+  const transaction = decodeBase64Transaction(transactionBase64);
+  const sent = await walletProvider.signAndSendTransaction(transaction);
+  const signature = typeof sent === "string" ? sent : sent.signature;
+  if (!signature) throw new Error("Wallet did not return a Solana transaction signature.");
+
+  setState("EXECUTING", "Transaction submitted. Waiting for Solana confirmation…");
+  settleButton.textContent = "Confirming…";
+
+  const started = Date.now();
+  let confirmed = false;
+  while (Date.now() - started < 60_000) {
+    const status = await solana.getSignatureStatus(signature, { searchTransactionHistory: true });
+    if (status.value?.err) throw new Error("Solana transaction failed.");
+    if (status.value?.confirmationStatus === "confirmed" || status.value?.confirmationStatus === "finalized") {
+      confirmed = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  if (!confirmed) throw new Error("Solana transaction was submitted but confirmation timed out. Check the explorer before retrying.");
+
+  setState("EXECUTED", "Mary Jane settlement confirmed on Solana Devnet.");
+  $("settlementStatus").textContent = "Confirmed on Solana Devnet";
+  settleButton.textContent = "Settled";
+  settleButton.disabled = true;
+  solanaProofLink.href = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+  solanaProofLink.classList.remove("hidden");
+
+  localStorage.setItem("33hoxo:last-execution", JSON.stringify({
+    commitment: envelope.commitment,
+    signature,
+    executedAt: Math.floor(Date.now()/1000),
+    adapter: "maryjane-solana-v1",
+  }));
 }
 
 function renderEnvelope() {
@@ -297,9 +435,7 @@ async function attemptReveal() {
     $("revealedAction").textContent = revealed.action;
     $("revealedPrice").textContent = revealed.priceBps != null ? `${revealed.priceBps} bps` : "Market";
     $("revealedQuantity").textContent = revealed.quantityBaseUnits;
-    $("settlementStatus").textContent = "Verified · adapter ready";
-    settleButton.disabled = true;
-    settleButton.textContent = "Wire Mary Jane wallet to settle";
+    updateSettlementAvailability();
     if (revealTimer) window.clearInterval(revealTimer);
   } catch (error) {
     if (error instanceof ShutterApiError && (error.status === 404 || error.retryable)) {
@@ -369,6 +505,8 @@ sealButton.addEventListener("click", async () => {
 
     setState("SEALED", "Real Shutter ciphertext created. The plaintext fields are now sealed until reveal.");
     renderEnvelope();
+    localStorage.setItem("33hoxo:last-envelope", JSON.stringify(envelope));
+    sessionStorage.setItem("33hoxo:last-intent", JSON.stringify(intent));
     updateCountdown();
     beginPolling();
 
@@ -398,12 +536,42 @@ copyProof.addEventListener("click", async () => {
   window.setTimeout(() => { copyProof.textContent = "Copy proof"; }, 1200);
 });
 
-settleButton.addEventListener("click", () => {
-  $("actionMessage").textContent =
-    "The 33HOXO Mary Jane adapter is implemented, but this deployment intentionally does not fake wallet signing. Connect the Mary Jane wallet layer next.";
+walletButton.addEventListener("click", async () => {
+  try {
+    await connectWallet();
+    $("actionMessage").textContent = "Solana wallet connected.";
+  } catch (error) {
+    $("actionMessage").textContent = error instanceof Error ? error.message : String(error);
+  }
+});
+
+settleButton.addEventListener("click", async () => {
+  try {
+    await settleVerifiedIntent();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setState("ERROR", message);
+    $("settlementStatus").textContent = "Settlement failed";
+    settleButton.disabled = false;
+    settleButton.textContent = "Retry settlement";
+  }
 });
 
 void (async () => {
+  const provider = getProvider();
+  if (provider) {
+    try {
+      const trusted = await provider.connect({ onlyIfTrusted: true });
+      walletProvider = provider;
+      walletAddress = trusted.publicKey.toString();
+      ($<HTMLInputElement>("trader")).value = walletAddress;
+      walletButton.textContent = walletAddress.slice(0,4) + "…" + walletAddress.slice(-4);
+      walletButton.classList.add("connected");
+    } catch {
+      // User has not previously trusted this site; explicit connect stays available.
+    }
+  }
+
   const status = document.getElementById("networkStatus");
   if (!status) return;
   try {
