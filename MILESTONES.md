@@ -1,154 +1,41 @@
 # 33HOXO Delivery Milestones
 
 ## 1 — Confidential Market Protocol Specification
-
-- universal intent schema
-- application/chain/adapter routing
-- order/bid/RFQ intent kinds
-- amount, price, fill, slippage and expiry constraints
-- secure nonce
-- reveal condition
-- canonical serialization
-- deterministic commitment
-- envelope format
-- lifecycle and failure states
-- public/private data boundary
-- protocol versioning
-- test vectors
-
-**Current:** foundation implemented.
+Canonical intent schema, deterministic commitment, protocol lifecycle and confidentiality boundary.
+**Status:** foundation implemented.
 
 ## 2 — Shutter Cryptography & Identity Layer
-
-- Chiado + Gnosis configuration
-- API authentication
-- identity-prefix generation
-- timed identity registration
-- eon/encryption data retrieval
-- local SDK encryption
-- decryption-key retrieval
-- local decryption
-- timeouts/errors/retries
-- browser WASM asset integration guidance
-- cryptographic integration test against Chiado
-
-**Current:** API client and crypto wrapper implemented; live integration test pending.
+Chiado/Gnosis client, timed identity registration, encryption-data retrieval and local SDK encryption/decryption.
+**Status:** implementation complete; live Chiado round-trip remains deployment validation.
 
 ## 3 — Confidential Intent Gateway & Commitment Network
-
-- ciphertext-only API
-- envelope validation
-- idempotent commitment submission
-- cancellation policy
-- public commitment status
-- persistent Postgres adapter
-- event/audit log
-- rate limiting
-- payload-size protection
-- metrics and health endpoints
-
-**Current:** service contract and in-memory implementation completed.
+Ciphertext-only admission, validation, idempotent submission and cancellation.
+**Status:** development gateway complete; durable production store remains deployment work.
 
 ## 4 — Shutter Reveal & Decryption Engine
-
-- reveal scheduling
-- threshold key retrieval
-- retry/backoff
-- batch reveals
-- worker idempotency
-- dead-letter handling
-- lifecycle transitions
-- no plaintext persistence
-- reveal proofs
-
-**Current:** first time-trigger reveal engine implemented.
+Timed key retrieval, decryption, lifecycle transitions and no plaintext persistence.
+**Status:** core reveal engine implemented.
 
 ## 5 — Verification, Fairness & Security Engine
-
-- commitment recomputation
-- routing verification
-- expiry checks
-- replay protection
-- nonce registry
-- trader signatures
-- authorization policy
-- malformed payload rejection
-- tamper proof
-- verification receipt
-
-**Current:** commitment/routing/expiry checks implemented; signature and replay layers next.
+Commitment/routing/expiry verification plus replay protection.
+**Status:** implemented for V1; production signature-policy extension remains available.
 
 ## 6 — Universal Settlement Adapter Framework
-
-- adapter registry
-- validate
-- simulate
-- prepare
-- execute
-- confirm
-- execution receipt
-- temporary/permanent failure taxonomy
-- batch settlement interface
-- partial-fill semantics
-
-**Current:** base interface and registry implemented.
+Registry, validate/simulate/prepare/execute/confirm, failure taxonomy, nonce-aware execution and batch coordinator.
+**Status:** implemented.
 
 ## 7 — Mary Jane Solana Reference Adapter
-
-- map verified intent to Mary Jane market
-- YES/NO outcome mapping
-- BUY/SELL mapping
-- price/quantity conversion
-- USDG collateral checks
-- Solana account discovery
-- transaction preparation
-- wallet authorization model
-- execution and confirmation
-- confidential batch order window
-- settlement receipt
+Verified intent mapping to Mary Jane's current order-place API, wallet-owned signing boundary, simulation and confirmation.
+**Status:** implemented and unit-tested. Live Solana execution depends on application wallet/environment.
 
 ## 8 — Mary Jane Confidential Trading UX
-
-- Standard / Confidential selector
-- local encryption
-- sealed-order confirmation
-- commitment ID
-- Shutter identity proof
-- reveal countdown
-- lifecycle viewer
-- public sealed-order count
-- reveal/batch result
-- settlement explorer link
-- proof viewer
+Confidential/standard controller, reveal countdown, lifecycle copy, public proof model and judge-facing static proof UI.
+**Status:** implemented as reusable UI model + reference demo.
 
 ## 9 — SDK, API & External Developer Platform
-
-- publishable TypeScript SDK
-- browser SDK
-- server SDK
-- REST service
-- webhooks
-- React hooks
-- mock settlement adapter
-- sandbox
-- integration docs
-- prediction-market example
-- sealed-auction example
+Client SDK, local transport, portable REST handler, signed webhook dispatcher, integration guide and second adapter example.
+**Status:** implemented foundation.
 
 ## 10 — Production Hardening & Grant Demonstration
-
-- cryptographic integration suite
-- negative/tamper tests
-- replay tests
-- load tests
-- Shutter outage simulation
-- settlement outage recovery
-- security review
-- architecture diagram
-- live proof page
-- premature-reveal demonstration
-- live reveal
-- verification proof
-- Mary Jane Solana transaction proof
-- reusable second example
-- grant-ready documentation and demo
+Replay protection, settlement failure recovery semantics, 1,000-intent load smoke test, security review, execution proof model and grant-demo runbook.
+**Status:** implemented foundation; live Chiado + Solana evidence must be captured in a deployed environment.

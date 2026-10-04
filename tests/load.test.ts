@@ -1,0 +1,4 @@
+import { describe,expect,it } from "vitest";
+import { ConfidentialIntentGateway,InMemoryCommitmentStore,type ConfidentialEnvelopeV1 } from "../src/index.js";
+const h=(n:number):`0x${string}`=>`0x${n.toString(16).padStart(64,"0")}`;
+describe("load smoke",()=>{it("accepts 1000 ciphertext commitments",async()=>{const g=new ConfidentialIntentGateway(new InMemoryCommitmentStore());const jobs=Array.from({length:1000},(_,i)=>{const e:ConfidentialEnvelopeV1={version:1,scheme:"shutter-threshold-encryption",application:"load",sourceChain:"solana:devnet",settlementAdapter:"mock",market:"m",commitment:h(i+1),ciphertext:h(i+2000),shutter:{network:"chiado",identity:"0x0102",identityPrefix:"0x0304",eon:1},createdAt:100,revealAt:200,expiresAt:400};return g.submit(e,150)});const r=await Promise.all(jobs);expect(r).toHaveLength(1000);expect(r.every(x=>x.state==="WAITING")).toBe(true)})});
