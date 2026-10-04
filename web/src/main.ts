@@ -15,7 +15,21 @@ import type {
 
 type DemoState = "IDLE" | "REGISTERING" | "ENCRYPTING" | "SEALED" | "WAITING" | "REVEALING" | "VERIFIED" | "ERROR";
 
-const shutter = new ShutterApiClient({ network: "chiado" });
+const shutterProxyFetch: typeof fetch = async (input, init) => {
+  const raw = typeof input === "string"
+    ? input
+    : input instanceof URL
+      ? input.toString()
+      : input.url;
+  const upstream = new URL(raw);
+  const upstreamPath = `${upstream.pathname}${upstream.search}`;
+  return fetch(`/api/shutter?path=${encodeURIComponent(upstreamPath)}`, init);
+};
+
+const shutter = new ShutterApiClient({
+  network: "chiado",
+  fetchImpl: shutterProxyFetch,
+});
 
 let state: DemoState = "IDLE";
 let intent: ConfidentialIntentV1 | null = null;
@@ -38,7 +52,7 @@ app.innerHTML = `
       </div>
     </div>
     <div class="network-cluster">
-      <div class="status-pill"><i></i> Shutter Chiado</div>
+      <div id="networkStatus" class="status-pill"><i></i> Shutter Chiado · checking</div>
       <div class="status-pill neutral">Protocol v1</div>
       <a class="ghost-link" href="https://github.com/mushee-io/33hoxo" target="_blank" rel="noreferrer">GitHub ↗</a>
     </div>
@@ -388,5 +402,16 @@ settleButton.addEventListener("click", () => {
   $("actionMessage").textContent =
     "The 33HOXO Mary Jane adapter is implemented, but this deployment intentionally does not fake wallet signing. Connect the Mary Jane wallet layer next.";
 });
+
+void (async () => {
+  const status = document.getElementById("networkStatus");
+  if (!status) return;
+  try {
+    await shutter.checkAuthentication();
+    status.innerHTML = "<i></i> Shutter Chiado · reachable";
+  } catch {
+    status.innerHTML = "<i></i> Shutter Chiado · proxy error";
+  }
+})();
 
 setState("IDLE");
