@@ -25,13 +25,22 @@ export class HttpGatewayTransport implements ConfidentialGatewayTransport {
     return headers;
   }
 
-  private async request<T>(path: string, init?: RequestInit): Promise<T> {
+  private async request<T>(
+    path: string,
+    init?: RequestInit,
+    options: { nullOn404?: boolean } = {},
+  ): Promise<T> {
     const headers = this.headers();
     if (init?.body) headers.set("content-type", "application/json");
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers,
     });
+
+    if (options.nullOn404 && response.status === 404) {
+      return null as T;
+    }
+
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok) {
       const message = typeof body.error === "string"
@@ -50,7 +59,11 @@ export class HttpGatewayTransport implements ConfidentialGatewayTransport {
   }
 
   get(commitment: Hex): Promise<PublicIntentRecord | null> {
-    return this.request(`/api/v1/intents/${commitment}`);
+    return this.request(
+      `/api/v1/intents/${commitment}`,
+      undefined,
+      { nullOn404: true },
+    );
   }
 
   cancel(commitment: Hex): Promise<PublicIntentRecord> {
