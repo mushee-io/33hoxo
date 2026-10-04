@@ -15,7 +15,9 @@
   "files": ["dist", "README.md", "docs"],
   "engines": { "node": "22.x" },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run build:sdk && npm run build:web",
+    "build:sdk": "tsc -p tsconfig.build.json",
+    "build:web": "vite build --config web/vite.config.ts && node scripts/copy-shutter-assets.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@types/node": "^22.15.0",
     "typescript": "^5.8.2",
+    "vite": "^7.1.7",
     "vitest": "^3.2.4"
   }
 }
