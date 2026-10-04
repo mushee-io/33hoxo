@@ -15,6 +15,14 @@ export class ShutterApiError extends Error{
   constructor(readonly status:number|null,message:string,readonly retryable:boolean,readonly cause?:unknown){super(message);this.name="ShutterApiError";}
 }
 
+function unwrapMessage(value:Record<string,unknown>):Record<string,unknown>{
+  const message=value.message;
+  if(message&&typeof message==="object"&&!Array.isArray(message)){
+    return message as Record<string,unknown>;
+  }
+  return value;
+}
+
 function normalizeHex(value:unknown,label:string):Hex{
   if(typeof value!=="string"||!value.trim())throw new Error(`${label} is missing from Shutter API response.`);
   const raw=value.trim();
@@ -51,7 +59,8 @@ export class ShutterApiClient{
   async registerTimeIdentity(input:{decryptionTimestamp:number;identityPrefix:Hex}):Promise<ShutterIdentityRegistration>{
     if(!Number.isInteger(input.decryptionTimestamp)||input.decryptionTimestamp<=0)throw new Error("decryptionTimestamp must be a positive Unix timestamp.");
     assertHex(input.identityPrefix,"identityPrefix");
-    const raw=await this.request<Record<string,unknown>>("/time/register_identity",{method:"POST",body:JSON.stringify({decryptionTimestamp:input.decryptionTimestamp,identityPrefix:input.identityPrefix})});
+    const response=await this.request<Record<string,unknown>>("/time/register_identity",{method:"POST",body:JSON.stringify({decryptionTimestamp:input.decryptionTimestamp,identityPrefix:input.identityPrefix})});
+    const raw=unwrapMessage(response);
     const normalized:ShutterIdentityRegistration={
       eon:Number(raw.eon),
       eon_key:normalizeHex(raw.eon_key,"eon_key"),
@@ -68,7 +77,8 @@ export class ShutterApiClient{
   async getEncryptionData(identityPrefix:Hex):Promise<ShutterEncryptionData>{
     assertHex(identityPrefix,"identityPrefix");
     const query=new URLSearchParams({address:this.apiAddress,identityPrefix});
-    const raw=await this.request<Record<string,unknown>>(`/time/get_data_for_encryption?${query.toString()}`);
+    const response=await this.request<Record<string,unknown>>(`/time/get_data_for_encryption?${query.toString()}`);
+    const raw=unwrapMessage(response);
     const prefix=normalizeHex(raw.identity_prefix,"identity_prefix");
     if(prefix.toLowerCase()!==identityPrefix.toLowerCase())throw new Error("Shutter API returned encryption data for a different identity prefix.");
     const eon=Number(raw.eon);
@@ -85,7 +95,8 @@ export class ShutterApiClient{
   async getDecryptionKey(identity:Hex):Promise<ShutterDecryptionKey>{
     assertHex(identity,"identity");
     const query=new URLSearchParams({identity});
-    const raw=await this.request<Record<string,unknown>>(`/time/get_decryption_key?${query.toString()}`);
+    const response=await this.request<Record<string,unknown>>(`/time/get_decryption_key?${query.toString()}`);
+    const raw=unwrapMessage(response);
     const returnedIdentity=normalizeHex(raw.identity,"identity");
     if(returnedIdentity.toLowerCase()!==identity.toLowerCase())throw new Error("Shutter API returned a decryption key for a different identity.");
     const timestamp=Number(raw.decryption_timestamp);
