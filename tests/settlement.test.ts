@@ -4,7 +4,7 @@ import { InMemoryNonceRegistry, SettlementAdapterRegistry, SettlementExecutionEn
 const intent:ConfidentialIntentV1={
   version:1,application:"test",sourceChain:"test",settlementAdapter:"test-adapter",market:"market",trader:"trader",
   kind:"LIMIT_ORDER",action:"BUY",outcome:"YES",priceBps:5000,quantityBaseUnits:"100",allowPartialFill:false,
-  nonce:"0x00000000000000000000000000000020",createdAt:2_000_000_000,revealAt:2_000_000_100,expiresAt:2_000_001_000
+  nonce:"0x00000000000000000000000000000020",createdAt:1_700_000_000,revealAt:1_700_000_100,expiresAt:2_000_000_000
 };
 class Adapter implements SettlementAdapter {
   readonly id="test-adapter";
