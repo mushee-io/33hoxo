@@ -15,6 +15,14 @@ export class ShutterApiError extends Error{
   constructor(readonly status:number|null,message:string,readonly retryable:boolean,readonly cause?:unknown){super(message);this.name="ShutterApiError";}
 }
 
+function normalizeHex(value:unknown,label:string):Hex{
+  if(typeof value!=="string"||!value.trim())throw new Error(`${label} is missing from Shutter API response.`);
+  const raw=value.trim();
+  const prefixed=raw.startsWith("0x")?raw:`0x${raw}`;
+  assertHex(prefixed,label);
+  return prefixed;
+}
+
 export class ShutterApiClient{
   readonly network:ShutterNetwork;readonly baseUrl:string;readonly apiAddress:string;
   private readonly apiKey?:string;private readonly fetchImpl:typeof fetch;private readonly timeoutMs:number;
@@ -43,31 +51,50 @@ export class ShutterApiClient{
   async registerTimeIdentity(input:{decryptionTimestamp:number;identityPrefix:Hex}):Promise<ShutterIdentityRegistration>{
     if(!Number.isInteger(input.decryptionTimestamp)||input.decryptionTimestamp<=0)throw new Error("decryptionTimestamp must be a positive Unix timestamp.");
     assertHex(input.identityPrefix,"identityPrefix");
-    const raw=await this.request<ShutterIdentityRegistration>("/time/register_identity",{method:"POST",body:JSON.stringify({decryptionTimestamp:input.decryptionTimestamp,identityPrefix:input.identityPrefix})});
-    assertHex(raw.eon_key,"eon_key");assertHex(raw.identity,"identity");assertHex(raw.identity_prefix,"identity_prefix");
-    if(raw.epoch_id)assertHex(raw.epoch_id,"epoch_id");if(!Number.isInteger(raw.eon)||raw.eon<0)throw new Error("Shutter API returned an invalid eon.");
-    if(raw.identity_prefix.toLowerCase()!==input.identityPrefix.toLowerCase())throw new Error("Shutter API returned an unexpected identity prefix.");
-    return raw;
+    const raw=await this.request<Record<string,unknown>>("/time/register_identity",{method:"POST",body:JSON.stringify({decryptionTimestamp:input.decryptionTimestamp,identityPrefix:input.identityPrefix})});
+    const normalized:ShutterIdentityRegistration={
+      eon:Number(raw.eon),
+      eon_key:normalizeHex(raw.eon_key,"eon_key"),
+      identity:normalizeHex(raw.identity,"identity"),
+      identity_prefix:normalizeHex(raw.identity_prefix,"identity_prefix"),
+      ...(raw.epoch_id?{epoch_id:normalizeHex(raw.epoch_id,"epoch_id")}:{ }),
+      ...(raw.tx_hash?{tx_hash:normalizeHex(raw.tx_hash,"tx_hash")}:{ }),
+    };
+    if(!Number.isInteger(normalized.eon)||normalized.eon<0)throw new Error("Shutter API returned an invalid eon.");
+    if(normalized.identity_prefix.toLowerCase()!==input.identityPrefix.toLowerCase())throw new Error("Shutter API returned an unexpected identity prefix.");
+    return normalized;
   }
 
   async getEncryptionData(identityPrefix:Hex):Promise<ShutterEncryptionData>{
     assertHex(identityPrefix,"identityPrefix");
     const query=new URLSearchParams({address:this.apiAddress,identityPrefix});
-    const raw=await this.request<ShutterIdentityRegistration>(`/time/get_data_for_encryption?${query.toString()}`);
-    assertHex(raw.eon_key,"eon_key");assertHex(raw.identity,"identity");assertHex(raw.identity_prefix,"identity_prefix");
-    if(raw.epoch_id)assertHex(raw.epoch_id,"epoch_id");
-    if(!Number.isInteger(raw.eon)||raw.eon<0)throw new Error("Shutter API returned an invalid eon.");
-    if(raw.identity_prefix.toLowerCase()!==identityPrefix.toLowerCase())throw new Error("Shutter API returned encryption data for a different identity prefix.");
-    return{eon:raw.eon,eonKey:raw.eon_key,identity:raw.identity,identityPrefix:raw.identity_prefix,epochId:raw.epoch_id};
+    const raw=await this.request<Record<string,unknown>>(`/time/get_data_for_encryption?${query.toString()}`);
+    const prefix=normalizeHex(raw.identity_prefix,"identity_prefix");
+    if(prefix.toLowerCase()!==identityPrefix.toLowerCase())throw new Error("Shutter API returned encryption data for a different identity prefix.");
+    const eon=Number(raw.eon);
+    if(!Number.isInteger(eon)||eon<0)throw new Error("Shutter API returned an invalid eon.");
+    return{
+      eon,
+      eonKey:normalizeHex(raw.eon_key,"eon_key"),
+      identity:normalizeHex(raw.identity,"identity"),
+      identityPrefix:prefix,
+      ...(raw.epoch_id?{epochId:normalizeHex(raw.epoch_id,"epoch_id")}:{ }),
+    };
   }
 
   async getDecryptionKey(identity:Hex):Promise<ShutterDecryptionKey>{
-    assertHex(identity,"identity");const query=new URLSearchParams({identity});
-    const raw=await this.request<ShutterDecryptionKey>(`/time/get_decryption_key?${query.toString()}`);
-    assertHex(raw.decryption_key,"decryption_key");assertHex(raw.identity,"identity");
-    if(raw.identity.toLowerCase()!==identity.toLowerCase())throw new Error("Shutter API returned a decryption key for a different identity.");
-    if(!Number.isInteger(raw.decryption_timestamp)||raw.decryption_timestamp<0)throw new Error("Shutter API returned an invalid decryption timestamp.");
-    return raw;
+    assertHex(identity,"identity");
+    const query=new URLSearchParams({identity});
+    const raw=await this.request<Record<string,unknown>>(`/time/get_decryption_key?${query.toString()}`);
+    const returnedIdentity=normalizeHex(raw.identity,"identity");
+    if(returnedIdentity.toLowerCase()!==identity.toLowerCase())throw new Error("Shutter API returned a decryption key for a different identity.");
+    const timestamp=Number(raw.decryption_timestamp);
+    if(!Number.isInteger(timestamp)||timestamp<0)throw new Error("Shutter API returned an invalid decryption timestamp.");
+    return{
+      decryption_key:normalizeHex(raw.decryption_key,"decryption_key"),
+      decryption_timestamp:timestamp,
+      identity:returnedIdentity,
+    };
   }
 
   async checkAuthentication():Promise<unknown>{return this.request("/check_authentication");}

@@ -23,7 +23,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@shutter-network/shutter-sdk": "0.0.2"
+    "@shutter-network/shutter-sdk": "0.0.2",
+    "@solana/web3.js": "^1.98.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
