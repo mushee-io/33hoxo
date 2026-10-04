@@ -47,7 +47,7 @@ export class ConfidentialMarketsClient {
       network: this.shutter.network,
       encryptionData,
     });
-    return { envelope, record: await this.gateway.submit(envelope, now) };
+    return { envelope, record: await this.gateway.submit(envelope) };
   }
 
   status(commitment: Hex): Promise<PublicIntentRecord | null> {
