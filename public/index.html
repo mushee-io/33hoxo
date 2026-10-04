@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="33HOXO — reusable confidential-market infrastructure powered by Shutter." />
+  <title>33HOXO — Confidential Markets</title>
+  <style>
+    :root{color-scheme:dark;background:#08090b;color:#f4f4f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;background:radial-gradient(circle at top,#1a1d24 0,#0b0c0f 38%,#08090b 70%);min-height:100vh}
+    main{max-width:1000px;margin:0 auto;padding:72px 24px 80px}
+    .eyebrow{display:inline-flex;padding:7px 11px;border:1px solid #343943;border-radius:999px;color:#c7cbd3;background:#12151a;font-size:13px}
+    h1{font-size:clamp(46px,9vw,92px);line-height:.94;letter-spacing:-.06em;margin:24px 0 18px;max-width:900px}
+    .lead{font-size:20px;line-height:1.6;color:#aeb4bf;max-width:760px}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:34px}
+    .card{border:1px solid #262a31;background:rgba(17,19,24,.86);border-radius:18px;padding:20px}
+    .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:#8f96a3;margin:0 0 10px}
+    .card p{margin:0;color:#e5e7eb;line-height:1.55}
+    .flow{margin-top:18px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#b6f3c7;font-size:14px;line-height:1.8}
+    .demo{margin-top:28px;border:1px solid #303640;background:#101217;border-radius:22px;padding:24px}
+    .row{display:flex;flex-wrap:wrap;gap:10px}
+    input,select,button{font:inherit;border:1px solid #363b45;border-radius:11px;padding:11px 12px;background:#181b21;color:#fff}
+    input{min-width:170px}
+    button{background:#f4f4f5;color:#0b0c0f;font-weight:750;cursor:pointer}
+    .proof{display:none;margin-top:18px;padding:18px;border-radius:14px;background:#0b0d11;border:1px solid #272c34}
+    code{word-break:break-all;color:#b6f3c7}
+    .muted{color:#858d99;font-size:14px}
+    footer{margin-top:40px;color:#737b86;font-size:13px}
+    @media(max-width:760px){.grid{grid-template-columns:1fr}main{padding-top:44px}}
+  </style>
+</head>
+<body>
+<main>
+  <span class="eyebrow">Shutter threshold encryption · Solana reference integration</span>
+  <h1>Confidential execution for markets.</h1>
+  <p class="lead">33HOXO lets applications seal trading intents before submission, reveal them only when the agreed Shutter trigger is satisfied, verify the original commitment, and route the verified intent into a settlement adapter.</p>
+
+  <div class="grid">
+    <section class="card"><h2>Before reveal</h2><p>Order side, action, size and price remain inside Shutter ciphertext.</p></section>
+    <section class="card"><h2>At reveal</h2><p>The threshold key unlocks the order and 33HOXO recomputes its commitment.</p></section>
+    <section class="card"><h2>Settlement</h2><p>Verified intents route into Mary Jane, auctions, DEXs, RFQs or other adapters.</p></section>
+  </div>
+
+  <div class="demo">
+    <h2>Confidential order preview</h2>
+    <p class="muted">This page demonstrates the information boundary. The repository contains the actual Shutter SDK integration and verification engine.</p>
+    <div class="row">
+      <select id="side"><option>YES</option><option>NO</option></select>
+      <select id="action"><option>BUY</option><option>SELL</option></select>
+      <input id="price" value="6200" aria-label="Limit price in bps" />
+      <input id="qty" value="500000000" aria-label="Quantity in base units" />
+      <button id="seal">Preview sealed intent</button>
+    </div>
+    <div class="proof" id="proof">
+      <strong>Protected by Shutter</strong>
+      <p class="muted">Public commitment</p>
+      <code id="commitment"></code>
+      <p id="private"></p>
+      <div class="flow">CREATED → ENCRYPTED → SEALED → WAITING → REVEALED → VERIFIED → EXECUTED</div>
+    </div>
+  </div>
+
+  <footer>33HOXO · reusable confidential-market infrastructure · testnet / grant demo</footer>
+</main>
+<script>
+document.getElementById("seal").addEventListener("click", () => {
+  const random = crypto.getRandomValues(new Uint8Array(32));
+  document.getElementById("commitment").textContent =
+    "0x" + [...random].map(v => v.toString(16).padStart(2, "0")).join("");
+  document.getElementById("private").textContent =
+    "Trader-local intent: " +
+    document.getElementById("action").value + " " +
+    document.getElementById("side").value + " · " +
+    document.getElementById("qty").value + " units · " +
+    document.getElementById("price").value + " bps";
+  document.getElementById("proof").style.display = "block";
+});
+</script>
+</body>
+</html>
