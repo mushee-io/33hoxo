@@ -8,13 +8,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  const configured = process.env.MARYJANE_ORDER_PLACE_URL;
-  if (!configured) {
-    return res.status(503).json({
-      code: "MARYJANE_NOT_CONFIGURED",
-      error: "Set MARYJANE_ORDER_PLACE_URL in Vercel to the live Mary Jane /api/order-place URL.",
-    });
-  }
+  const configured = process.env.MARYJANE_ORDER_PLACE_URL || "https://maryjane-blue.vercel.app/api/order-place";
 
   let target;
   try {
