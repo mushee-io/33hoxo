@@ -734,7 +734,7 @@ sealButton.addEventListener("click", async () => {
       metadata: { protocol: "33hoxo", reference: "maryjane" },
     };
 
-    setState("REGISTERING", "Creating timed Shutter identity on ${runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado"}…");
+    setState("REGISTERING", `Creating timed Shutter identity on ${runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado"}…`);
     const identityPrefix = randomHex(32);
     const registration = await shutter.registerTimeIdentity({ decryptionTimestamp: revealAt, identityPrefix });
 
@@ -860,11 +860,13 @@ void (async () => {
   try {
     await shutter.checkAuthentication();
     shutterReachable = true;
-    $("networkStatus").innerHTML = "<i></i> ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} · reachable";
-    $("sideNetwork").innerHTML = "<i></i> Chiado reachable";
+    const networkLabel = runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado";
+    $("networkStatus").innerHTML = `<i></i> Shutter ${networkLabel} · reachable`;
+    $("sideNetwork").innerHTML = `<i></i> ${networkLabel} reachable`;
   } catch {
-    $("networkStatus").innerHTML = "<i></i> ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} · unavailable";
-    $("sideNetwork").innerHTML = "<i></i> Chiado unavailable";
+    const networkLabel = runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado";
+    $("networkStatus").innerHTML = `<i></i> Shutter ${networkLabel} · unavailable`;
+    $("sideNetwork").innerHTML = `<i></i> ${networkLabel} unavailable`;
   }
   renderStats();
 })();
