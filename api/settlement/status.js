@@ -1,7 +1,7 @@
 import { Connection } from "@solana/web3.js";
 import { requireApiKey } from "../../lib/server/auth.js";
 import { runtimeConfig } from "../../lib/server/runtime.js";
-import { markExecuted } from "../../lib/server/intentStore.js";
+import { getIntent, markExecuted } from "../../lib/server/intentStore.js";
 
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
@@ -16,6 +16,14 @@ export default async function handler(req, res) {
     const commitment = String(req.body?.commitment || "");
     if (!signature || !commitment) {
       return res.status(400).json({ error: "signature and commitment are required." });
+    }
+
+    const record = await getIntent(commitment);
+    if (!record) return res.status(404).json({ error: "Unknown commitment." });
+    if (record.state !== "EXECUTING" || record.transactionId !== signature) {
+      return res.status(409).json({
+        error: "Settlement signature is not registered for this commitment.",
+      });
     }
 
     const config = runtimeConfig();
@@ -33,11 +41,20 @@ export default async function handler(req, res) {
 
     const status = result.value?.confirmationStatus || "unknown";
     if (status === "confirmed" || status === "finalized") {
-      await markExecuted(commitment, signature);
-      return res.status(200).json({ status: "CONFIRMED", signature, cluster: config.solanaCluster });
+      const executed = await markExecuted(commitment, signature);
+      return res.status(200).json({
+        status: "CONFIRMED",
+        signature,
+        cluster: config.solanaCluster,
+        intent: executed,
+      });
     }
 
-    return res.status(202).json({ status: "PENDING", signature, cluster: config.solanaCluster });
+    return res.status(202).json({
+      status: "PENDING",
+      signature,
+      cluster: config.solanaCluster,
+    });
   } catch (error) {
     return res.status(error.status || 500).json({
       error: error instanceof Error ? error.message : String(error),

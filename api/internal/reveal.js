@@ -1,7 +1,6 @@
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { requireCron } from "../../lib/server/auth.js";
-import { runtimeConfig } from "../../lib/server/runtime.js";
 import {
   revealCandidates,
   markInvalid,
@@ -55,18 +54,29 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed." });
     }
 
-    const config = runtimeConfig();
     const candidates = await revealCandidates(50);
     const results = [];
 
     for (const row of candidates) {
       const envelope = row.envelope;
+      const network = envelope?.shutter?.network === "gnosis" ? "gnosis" : "chiado";
+
       try {
         const response = await shutterRequest(
-          config.shutterNetwork,
+          network,
           `/api/time/get_decryption_key?identity=${encodeURIComponent(envelope.shutter.identity)}`
         );
         const key = unwrap(response);
+
+        if (
+          normalizeHex(key.identity).toLowerCase() !==
+          normalizeHex(envelope.shutter.identity).toLowerCase()
+        ) {
+          await markInvalid(envelope.commitment, "KEY_IDENTITY_MISMATCH");
+          results.push({ commitment: envelope.commitment, network, status: "INVALID" });
+          continue;
+        }
+
         const decrypted = await shutterSdk.decrypt(
           normalizeHex(envelope.ciphertext),
           normalizeHex(key.decryption_key)
@@ -75,25 +85,24 @@ export default async function handler(req, res) {
 
         if (commitmentOf(revealed).toLowerCase() !== envelope.commitment.toLowerCase()) {
           await markInvalid(envelope.commitment, "TAMPERED");
-          results.push({ commitment: envelope.commitment, status: "TAMPERED" });
+          results.push({ commitment: envelope.commitment, network, status: "TAMPERED" });
           continue;
         }
 
         await markVerified(envelope.commitment, revealed);
-        results.push({ commitment: envelope.commitment, status: "VERIFIED" });
+        results.push({ commitment: envelope.commitment, network, status: "VERIFIED" });
       } catch (error) {
         if (error?.status === 404 || error?.status === 429 || error?.status >= 500) {
           await markRevealable(envelope.commitment, "KEY_NOT_READY");
-          results.push({ commitment: envelope.commitment, status: "RETRYABLE" });
+          results.push({ commitment: envelope.commitment, network, status: "RETRYABLE" });
         } else {
           await markInvalid(envelope.commitment, "REVEAL_FAILED");
-          results.push({ commitment: envelope.commitment, status: "INVALID" });
+          results.push({ commitment: envelope.commitment, network, status: "INVALID" });
         }
       }
     }
 
     return res.status(200).json({
-      network: config.shutterNetwork,
       processed: results.length,
       results,
     });
