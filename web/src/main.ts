@@ -61,6 +61,26 @@ declare global {
   }
 }
 
+type RuntimeConfig = {
+  environment: "staging" | "production";
+  shutterNetwork: "chiado" | "gnosis";
+  solanaCluster: "devnet" | "mainnet-beta";
+  mainnetEnabled: boolean;
+  maxMainnetQuantityBaseUnits: string;
+  allowedMainnetAdapters: string[];
+  allowedMainnetMarkets: string[];
+};
+
+let runtimeConfig: RuntimeConfig = {
+  environment: "staging",
+  shutterNetwork: "chiado",
+  solanaCluster: "devnet",
+  mainnetEnabled: false,
+  maxMainnetQuantityBaseUnits: "1000000",
+  allowedMainnetAdapters: ["maryjane-solana-v1"],
+  allowedMainnetMarkets: [],
+};
+
 const shutterProxyFetch: typeof fetch = async (input, init) => {
   const raw =
     typeof input === "string"
@@ -70,15 +90,18 @@ const shutterProxyFetch: typeof fetch = async (input, init) => {
         : input.url;
   const upstream = new URL(raw);
   const upstreamPath = `${upstream.pathname}${upstream.search}`;
-  return fetch(`/api/shutter?path=${encodeURIComponent(upstreamPath)}`, init);
+  return fetch(
+    `/api/shutter?network=${runtimeConfig.shutterNetwork}&path=${encodeURIComponent(upstreamPath)}`,
+    init,
+  );
 };
 
-const shutter = new ShutterApiClient({
-  network: "chiado",
+let shutter = new ShutterApiClient({
+  network: runtimeConfig.shutterNetwork,
   fetchImpl: shutterProxyFetch,
 });
 
-const solana = new Connection("https://api.devnet.solana.com", "confirmed");
+let solana = new Connection("https://api.devnet.solana.com", "confirmed");
 
 let state: DemoState = "IDLE";
 let intent: ConfidentialIntentV1 | null = null;
@@ -119,7 +142,7 @@ app.innerHTML = `
 
     <div class="side-foot">
       <div id="sideNetwork" class="mini-status"><i></i> Chiado checking</div>
-      <span>Protocol v1 · Solana Devnet</span>
+      <span id="runtimeLabel">Protocol v1 · Solana Devnet</span>
     </div>
   </aside>
 
@@ -129,7 +152,7 @@ app.innerHTML = `
         <span class="crumb">33HOXO / <b id="pageTitle">Overview</b></span>
       </div>
       <div class="network-cluster">
-        <div id="networkStatus" class="status-pill"><i></i> Shutter Chiado · checking</div>
+        <div id="networkStatus" class="status-pill"><i></i> ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} · checking</div>
         <button id="walletButton" class="wallet-button">Connect wallet</button>
         <a class="ghost-link" href="https://github.com/mushee-io/33hoxo" target="_blank" rel="noreferrer">GitHub ↗</a>
       </div>
@@ -187,7 +210,7 @@ app.innerHTML = `
 
       <section class="view hidden" data-view-panel="orders">
         <div class="page-head compact-head">
-          <div><span class="kicker">REFERENCE IMPLEMENTATION</span><h1>Confidential Orders</h1><p>Real Shutter Chiado registration, encryption, timed reveal and verification. Mary Jane is the first settlement adapter.</p></div>
+          <div><span class="kicker">REFERENCE IMPLEMENTATION</span><h1>Confidential Orders</h1><p>Real ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} registration, encryption, timed reveal and verification. Mary Jane is the first settlement adapter.</p></div>
         </div>
 
         <section class="grid">
@@ -216,7 +239,7 @@ app.innerHTML = `
           <aside class="panel lifecycle-panel">
             <div class="panel-head"><div><span class="section-tag">ORDER LIFECYCLE</span><h2>Execution state</h2></div><span id="stateBadge" class="state-badge">IDLE</span></div>
             <ol class="steps">
-              <li data-step="REGISTERING"><span>01</span><div><strong>Register identity</strong><small>Timed trigger on Shutter Chiado</small></div></li>
+              <li data-step="REGISTERING"><span>01</span><div><strong>Register identity</strong><small>Timed trigger on ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"}</small></div></li>
               <li data-step="ENCRYPTING"><span>02</span><div><strong>Encrypt intent</strong><small>BLST threshold encryption in browser</small></div></li>
               <li data-step="SEALED"><span>03</span><div><strong>Seal commitment</strong><small>Ciphertext + SHA-256</small></div></li>
               <li data-step="WAITING"><span>04</span><div><strong>Wait for reveal</strong><small id="countdownText">Not scheduled</small></div></li>
@@ -280,7 +303,7 @@ app.innerHTML = `
       <section class="view hidden" data-view-panel="shutter">
         <div class="page-head compact-head"><div><span class="kicker">THRESHOLD ENCRYPTION</span><h1>Shutter Network</h1><p>Live connectivity and confidentiality status for the development deployment.</p></div></div>
         <div class="stat-grid">
-          <div class="stat-card"><span>Network</span><strong>Chiado</strong><small>Time-triggered reveal</small></div>
+          <div class="stat-card"><span>Network</span><strong id="shutterNetworkName">Chiado</strong><small>Time-triggered reveal</small></div>
           <div class="stat-card"><span>API</span><strong id="shutterApiState">Checking</strong><small>Same-origin Vercel proxy</small></div>
           <div class="stat-card"><span>Latest eon</span><strong id="latestEon">—</strong><small>From last sealed intent</small></div>
           <div class="stat-card"><span>Successful reveals</span><strong id="revealCount">0</strong><small>Local history</small></div>
@@ -567,6 +590,7 @@ async function settleVerifiedIntent() {
       kind: revealed.action,
       priceBps: revealed.priceBps,
       sharesBaseUnits: revealed.quantityBaseUnits,
+      cluster: runtimeConfig.solanaCluster,
     }),
   });
 
@@ -591,11 +615,13 @@ async function settleVerifiedIntent() {
     const result = await solana.getSignatureStatus(signature, { searchTransactionHistory: true });
     if (result.value?.err) throw new Error("Solana transaction failed.");
     if (["confirmed","finalized"].includes(result.value?.confirmationStatus || "")) {
-      setState("EXECUTED", "Mary Jane settlement confirmed on Solana Devnet.");
-      $("settlementStatus").textContent = "Confirmed on Solana Devnet";
+      setState("EXECUTED", `Mary Jane settlement confirmed on Solana ${runtimeConfig.solanaCluster}.`);
+      $("settlementStatus").textContent = `Confirmed on Solana ${runtimeConfig.solanaCluster}`;
       settleButton.textContent = "Settled";
       settleButton.disabled = true;
-      solanaProofLink.href = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+      solanaProofLink.href = runtimeConfig.solanaCluster === "mainnet-beta"
+        ? `https://explorer.solana.com/tx/${signature}`
+        : `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
       solanaProofLink.classList.remove("hidden");
       patchHistory(envelope.commitment, { status: "EXECUTED", signature });
       renderStats();
@@ -690,7 +716,7 @@ sealButton.addEventListener("click", async () => {
     intent = {
       version: 1,
       application: "maryjane",
-      sourceChain: "solana:devnet",
+      sourceChain: `solana:${runtimeConfig.solanaCluster}`,
       settlementAdapter: "maryjane-solana-v1",
       market: ($<HTMLInputElement>("market")).value.trim(),
       trader: ($<HTMLInputElement>("trader")).value.trim(),
@@ -708,14 +734,14 @@ sealButton.addEventListener("click", async () => {
       metadata: { protocol: "33hoxo", reference: "maryjane" },
     };
 
-    setState("REGISTERING", "Creating timed Shutter identity on Chiado…");
+    setState("REGISTERING", "Creating timed Shutter identity on ${runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado"}…");
     const identityPrefix = randomHex(32);
     const registration = await shutter.registerTimeIdentity({ decryptionTimestamp: revealAt, identityPrefix });
 
     setState("ENCRYPTING", "Identity registered. Encrypting canonical intent locally…");
     envelope = await encryptConfidentialIntent({
       intent,
-      network: "chiado",
+      network: runtimeConfig.shutterNetwork,
       encryptionData: {
         eon: registration.eon,
         eonKey: registration.eon_key,
@@ -791,6 +817,34 @@ $<HTMLButtonElement>("proofLookup").addEventListener("click", () => {
 });
 
 void (async () => {
+  try {
+    const response = await fetch("/api/config", { cache: "no-store" });
+    if (response.ok) {
+      runtimeConfig = await response.json() as RuntimeConfig;
+      shutter = new ShutterApiClient({
+        network: runtimeConfig.shutterNetwork,
+        fetchImpl: shutterProxyFetch,
+      });
+      solana = new Connection(
+        runtimeConfig.solanaCluster === "mainnet-beta"
+          ? "https://api.mainnet-beta.solana.com"
+          : "https://api.devnet.solana.com",
+        "confirmed",
+      );
+
+      const networkLabel = runtimeConfig.shutterNetwork === "gnosis" ? "Gnosis" : "Chiado";
+      $("runtimeLabel").textContent =
+        `Protocol v1 · Solana ${runtimeConfig.solanaCluster}`;
+      $("shutterNetworkName").textContent = networkLabel;
+
+      if (runtimeConfig.solanaCluster === "mainnet-beta" && !runtimeConfig.mainnetEnabled) {
+        $("settlementStatus").textContent = "Mainnet beta disabled by safety policy";
+      }
+    }
+  } catch {
+    // Keep safe staging defaults if runtime configuration is unavailable.
+  }
+
   const provider = getProvider();
   if (provider) {
     try {
@@ -806,10 +860,10 @@ void (async () => {
   try {
     await shutter.checkAuthentication();
     shutterReachable = true;
-    $("networkStatus").innerHTML = "<i></i> Shutter Chiado · reachable";
+    $("networkStatus").innerHTML = "<i></i> ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} · reachable";
     $("sideNetwork").innerHTML = "<i></i> Chiado reachable";
   } catch {
-    $("networkStatus").innerHTML = "<i></i> Shutter Chiado · unavailable";
+    $("networkStatus").innerHTML = "<i></i> ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} · unavailable";
     $("sideNetwork").innerHTML = "<i></i> Chiado unavailable";
   }
   renderStats();
