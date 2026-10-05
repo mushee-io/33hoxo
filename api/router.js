@@ -352,8 +352,7 @@ async function handleInternalReveal(req, res) {
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
-    const stagingBypass = process.env.HOXO_ENV === "staging" && process.env.RECONCILE_NOW === "true";
-    if (!stagingBypass) requireCron(req);
+    requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
@@ -502,10 +501,7 @@ async function handleWorker(req, res) {
     const { reconcileExecutingSettlements } =
       await import("../lib/server/reconcile.js");
 
-    const stagingBypass =
-      process.env.HOXO_ENV === "staging" &&
-      process.env.RECONCILE_NOW === "true";
-    if (!stagingBypass) requireCron(req);
+    requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
