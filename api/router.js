@@ -1,25 +1,3 @@
-import { Connection } from "@solana/web3.js";
-import { runtimeConfig, requireMainnetSafety } from "../lib/server/runtime.js";
-import { shutterBase } from "../lib/server/shutter.js";
-import { createWalletChallenge } from "../lib/server/walletAuth.js";
-import {
-  authorizeIntentWrite,
-  authorizeOwnedIntent,
-  requireCron,
-} from "../lib/server/auth.js";
-import {
-  insertIntent,
-  listIntents,
-  getIntent,
-  cancelIntent,
-  revealCandidates,
-  rowToRecord,
-  markExecuting,
-  markExecuted,
-} from "../lib/server/intentStore.js";
-import { publicIntent } from "../lib/server/publicIntent.js";
-import { revealOne } from "../lib/server/revealOne.js";
-
 const ALLOWED_SHUTTER_PATHS = new Set([
   "/api/check_authentication",
   "/api/time/register_identity",
@@ -33,23 +11,27 @@ function methodNotAllowed(res, allow) {
 }
 
 function errorResponse(res, error, fallback = 500) {
+  console.error("33HOXO API error", error);
   return res.status(error?.status || fallback).json({
     error: error instanceof Error ? error.message : String(error),
   });
 }
 
 async function handleHealth(req, res) {
+  const { runtimeConfig } = await import("../lib/server/runtime.js");
+  const config = runtimeConfig();
   return res.status(200).json({
     service: "33hoxo",
     status: "ok",
     protocolVersion: 1,
-    shutterNetwork: runtimeConfig().shutterNetwork,
-    settlement: runtimeConfig().solanaCluster,
+    shutterNetwork: config.shutterNetwork,
+    settlement: config.solanaCluster,
     adapters: ["maryjane-solana-v1", "sealed-auction-v1"],
   });
 }
 
 async function handleConfig(req, res) {
+  const { runtimeConfig } = await import("../lib/server/runtime.js");
   const config = runtimeConfig();
   return res.status(200).json({
     environment: config.environment,
@@ -63,7 +45,9 @@ async function handleConfig(req, res) {
 }
 
 async function handleReadiness(req, res) {
+  const { runtimeConfig } = await import("../lib/server/runtime.js");
   const config = runtimeConfig();
+
   const checks = {
     database: Boolean(process.env.DATABASE_URL),
     walletAuth: Boolean(process.env.HOXO_AUTH_SECRET),
@@ -115,6 +99,7 @@ async function handleReadiness(req, res) {
 async function handleAuthChallenge(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, "GET");
   try {
+    const { createWalletChallenge } = await import("../lib/server/walletAuth.js");
     return res.status(200).json(
       createWalletChallenge(String(req.query.wallet || ""))
     );
@@ -124,7 +109,10 @@ async function handleAuthChallenge(req, res) {
 }
 
 async function handleShutter(req, res) {
+  const { runtimeConfig } = await import("../lib/server/runtime.js");
+  const { shutterBase } = await import("../lib/server/shutter.js");
   const config = runtimeConfig();
+
   const requested = Array.isArray(req.query?.network)
     ? req.query.network[0]
     : req.query?.network;
@@ -185,10 +173,7 @@ async function handleShutter(req, res) {
     res.setHeader("x-33hoxo-shutter-network", network);
     return res.status(upstream.status).send(body);
   } catch (error) {
-    console.error("33HOXO Shutter proxy error", error);
-    return res.status(502).json({
-      error: "Shutter upstream request failed.",
-    });
+    return errorResponse(res, error, 502);
   }
 }
 
@@ -196,6 +181,8 @@ async function handleMaryJane(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
 
   try {
+    const { runtimeConfig, requireMainnetSafety } =
+      await import("../lib/server/runtime.js");
     const config = runtimeConfig();
     const requestedCluster =
       req.body?.cluster === "mainnet-beta" ? "mainnet-beta" : "devnet";
@@ -274,21 +261,16 @@ async function handleMaryJane(req, res) {
     res.setHeader("x-33hoxo-solana-cluster", requestedCluster);
     return res.status(upstream.status).send(body);
   } catch (error) {
-    console.error("33HOXO Mary Jane proxy error", error);
-    return res
-      .status(error?.code === "MAINNET_DISABLED" ? 403 : 502)
-      .json({
-        code: error?.code || "MARYJANE_UPSTREAM_FAILED",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Mary Jane order preparation request failed.",
-      });
+    return errorResponse(res, error, 502);
   }
 }
 
 async function handleIntents(req, res) {
   try {
+    const { insertIntent, listIntents } =
+      await import("../lib/server/intentStore.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
+
     if (req.method === "GET") {
       const records = await listIntents(req.query.limit);
       return res.status(200).json({
@@ -297,6 +279,7 @@ async function handleIntents(req, res) {
     }
 
     if (req.method === "POST") {
+      const { authorizeIntentWrite } = await import("../lib/server/auth.js");
       const auth = authorizeIntentWrite(req);
       const record = await insertIntent(req.body, auth.ownerWallet);
       return res.status(202).json(publicIntent(record));
@@ -311,6 +294,8 @@ async function handleIntents(req, res) {
 async function handleIntent(req, res) {
   if (req.method !== "GET") return methodNotAllowed(res, "GET");
   try {
+    const { getIntent } = await import("../lib/server/intentStore.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
     const record = await getIntent(String(req.query.commitment || ""));
     if (!record) {
       return res.status(404).json({ error: "Unknown commitment." });
@@ -324,6 +309,10 @@ async function handleIntent(req, res) {
 async function handleCancel(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
   try {
+    const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
+    const { cancelIntent, getIntent } =
+      await import("../lib/server/intentStore.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
     const commitment = String(req.query.commitment || "");
     const existing = await getIntent(commitment);
     if (!existing) {
@@ -339,6 +328,9 @@ async function handleCancel(req, res) {
 async function handleReveal(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
   try {
+    const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
+    const { getIntent } = await import("../lib/server/intentStore.js");
+    const { revealOne } = await import("../lib/server/revealOne.js");
     const commitment = String(req.query.commitment || "");
     const record = await getIntent(commitment);
     if (!record) {
@@ -356,6 +348,10 @@ async function handleReveal(req, res) {
 
 async function handleInternalReveal(req, res) {
   try {
+    const { requireCron } = await import("../lib/server/auth.js");
+    const { revealCandidates, rowToRecord } =
+      await import("../lib/server/intentStore.js");
+    const { revealOne } = await import("../lib/server/revealOne.js");
     requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
@@ -377,6 +373,10 @@ async function handleInternalReveal(req, res) {
 async function handleSettlementSubmit(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
   try {
+    const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
+    const { getIntent, markExecuting } =
+      await import("../lib/server/intentStore.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
     const commitment = String(req.body?.commitment || "");
     const signature = String(req.body?.signature || "");
     if (!commitment || !signature) {
@@ -401,6 +401,13 @@ async function handleSettlementStatus(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
 
   try {
+    const { Connection } = await import("@solana/web3.js");
+    const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
+    const { runtimeConfig } = await import("../lib/server/runtime.js");
+    const { getIntent, markExecuted } =
+      await import("../lib/server/intentStore.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
+
     const signature = String(req.body?.signature || "");
     const commitment = String(req.body?.commitment || "");
     if (!signature || !commitment) {
@@ -467,36 +474,40 @@ async function handleSettlementStatus(req, res) {
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
 
-  const route = String(req.query.route || "");
+  try {
+    const route = String(req.query.route || "");
 
-  switch (route) {
-    case "health":
-      return handleHealth(req, res);
-    case "config":
-      return handleConfig(req, res);
-    case "readiness":
-      return handleReadiness(req, res);
-    case "auth/challenge":
-      return handleAuthChallenge(req, res);
-    case "shutter":
-      return handleShutter(req, res);
-    case "maryjane":
-      return handleMaryJane(req, res);
-    case "v1/intents":
-      return handleIntents(req, res);
-    case "v1/intent":
-      return handleIntent(req, res);
-    case "v1/intent/cancel":
-      return handleCancel(req, res);
-    case "v1/intent/reveal":
-      return handleReveal(req, res);
-    case "internal/reveal":
-      return handleInternalReveal(req, res);
-    case "settlement/submit":
-      return handleSettlementSubmit(req, res);
-    case "settlement/status":
-      return handleSettlementStatus(req, res);
-    default:
-      return res.status(404).json({ error: "Unknown API route." });
+    switch (route) {
+      case "health":
+        return await handleHealth(req, res);
+      case "config":
+        return await handleConfig(req, res);
+      case "readiness":
+        return await handleReadiness(req, res);
+      case "auth/challenge":
+        return await handleAuthChallenge(req, res);
+      case "shutter":
+        return await handleShutter(req, res);
+      case "maryjane":
+        return await handleMaryJane(req, res);
+      case "v1/intents":
+        return await handleIntents(req, res);
+      case "v1/intent":
+        return await handleIntent(req, res);
+      case "v1/intent/cancel":
+        return await handleCancel(req, res);
+      case "v1/intent/reveal":
+        return await handleReveal(req, res);
+      case "internal/reveal":
+        return await handleInternalReveal(req, res);
+      case "settlement/submit":
+        return await handleSettlementSubmit(req, res);
+      case "settlement/status":
+        return await handleSettlementStatus(req, res);
+      default:
+        return res.status(404).json({ error: "Unknown API route." });
+    }
+  } catch (error) {
+    return errorResponse(res, error);
   }
 }
