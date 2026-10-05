@@ -348,7 +348,7 @@ async function handleReveal(req, res) {
 
 async function handleInternalReveal(req, res) {
   try {
-    const { requireWorkerAuth } = await import("../lib/server/auth.js");
+    const { requireCron } = await import("../lib/server/auth.js");
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
@@ -494,7 +494,7 @@ async function handleVerify(req, res) {
 
 async function handleWorker(req, res) {
   try {
-    const { requireCron } = await import("../lib/server/auth.js");
+    const { requireWorkerAuth } = await import("../lib/server/auth.js");
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
