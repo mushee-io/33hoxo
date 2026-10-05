@@ -157,6 +157,17 @@ app.innerHTML = `
   </aside>
 
   <div class="workspace">
+    <div class="console-ambient" aria-hidden="true">
+      <div class="curve-field curve-field--left">
+        <span style="--i:0;--w:60px"></span><span style="--i:1;--w:70px"></span><span style="--i:2;--w:80px"></span><span style="--i:3;--w:90px"></span><span style="--i:4;--w:100px"></span><span style="--i:5;--w:110px"></span><span style="--i:6;--w:120px"></span><span style="--i:7;--w:130px"></span><span style="--i:8;--w:140px"></span><span style="--i:9;--w:150px"></span><span style="--i:10;--w:160px"></span><span style="--i:11;--w:170px"></span><span style="--i:12;--w:180px"></span><span style="--i:13;--w:190px"></span><span style="--i:14;--w:200px"></span><span style="--i:15;--w:210px"></span><span style="--i:16;--w:220px"></span><span style="--i:17;--w:230px"></span><span style="--i:18;--w:240px"></span><span style="--i:19;--w:250px"></span>
+      </div>
+      <div class="curve-field curve-field--right">
+        <span style="--i:0;--w:60px"></span><span style="--i:1;--w:70px"></span><span style="--i:2;--w:80px"></span><span style="--i:3;--w:90px"></span><span style="--i:4;--w:100px"></span><span style="--i:5;--w:110px"></span><span style="--i:6;--w:120px"></span><span style="--i:7;--w:130px"></span><span style="--i:8;--w:140px"></span><span style="--i:9;--w:150px"></span><span style="--i:10;--w:160px"></span><span style="--i:11;--w:170px"></span><span style="--i:12;--w:180px"></span><span style="--i:13;--w:190px"></span><span style="--i:14;--w:200px"></span><span style="--i:15;--w:210px"></span><span style="--i:16;--w:220px"></span><span style="--i:17;--w:230px"></span><span style="--i:18;--w:240px"></span><span style="--i:19;--w:250px"></span>
+      </div>
+      <div class="curve-field curve-field--top">
+        <span style="--i:0;--w:60px"></span><span style="--i:1;--w:70px"></span><span style="--i:2;--w:80px"></span><span style="--i:3;--w:90px"></span><span style="--i:4;--w:100px"></span><span style="--i:5;--w:110px"></span><span style="--i:6;--w:120px"></span><span style="--i:7;--w:130px"></span><span style="--i:8;--w:140px"></span><span style="--i:9;--w:150px"></span><span style="--i:10;--w:160px"></span><span style="--i:11;--w:170px"></span><span style="--i:12;--w:180px"></span><span style="--i:13;--w:190px"></span><span style="--i:14;--w:200px"></span><span style="--i:15;--w:210px"></span><span style="--i:16;--w:220px"></span><span style="--i:17;--w:230px"></span><span style="--i:18;--w:240px"></span><span style="--i:19;--w:250px"></span>
+      </div>
+    </div>
     <header class="topbar">
       <div>
         <span class="crumb">33HOXO / <b id="pageTitle">Overview</b></span>
@@ -173,7 +184,12 @@ app.innerHTML = `
         <div class="page-head">
           <div>
             <span class="kicker">CONFIDENTIAL EXECUTION INFRASTRUCTURE</span>
-            <h1>Everything needed to seal, reveal, verify and settle market intents.</h1>
+            <div class="console-ticker" aria-hidden="true">
+              <div class="console-ticker__track">
+                <span>Prediction Markets</span><span>Sealed Auctions</span><span>DEX Intents</span><span>RFQ / OTC</span><span>Private Order Flow</span><span>Prediction Markets</span><span>Sealed Auctions</span><span>DEX Intents</span><span>RFQ / OTC</span><span>Private Order Flow</span>
+              </div>
+            </div>
+            <h1>Everything needed to <span class="serif italic">seal</span>, reveal, verify and settle market intents.</h1>
             <p>33HOXO packages Shutter threshold encryption into a reusable workflow for prediction markets, auctions, DEX intents, RFQs and OTC execution.</p>
           </div>
           <button class="primary compact" data-jump="orders">Create confidential intent</button>
@@ -220,7 +236,7 @@ app.innerHTML = `
 
       <section class="view hidden" data-view-panel="orders">
         <div class="page-head compact-head">
-          <div><span class="kicker">REFERENCE IMPLEMENTATION</span><h1>Confidential Orders</h1><p>Real ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} registration, encryption, timed reveal and verification. Mary Jane is the first settlement adapter.</p></div>
+          <div><span class="kicker">REFERENCE IMPLEMENTATION</span><h1>Confidential <span class="serif italic">Orders</span></h1><p>Real ${runtimeConfig.shutterNetwork === "gnosis" ? "Shutter Gnosis" : "Shutter Chiado"} registration, encryption, timed reveal and verification. Mary Jane is the first settlement adapter.</p></div>
         </div>
 
         <section class="grid">
