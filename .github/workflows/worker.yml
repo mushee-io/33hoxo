@@ -27,19 +27,23 @@ jobs:
         run: |
           set -u
           failures=0
+          ticks=1
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ticks=5
+          fi
 
           get_oidc_token() {
             curl -fsSL               -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"               "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=33hoxo-worker"               | jq -r '.value'
           }
 
-          for tick in 1 2 3 4 5; do
+          for tick in $(seq 1 "$ticks"); do
             token="$(get_oidc_token)"
 
             if ! curl -fsS               --retry 2               --retry-delay 2               --max-time 45               -H "Authorization: Bearer $token"               "$WORKER_URL"; then
               failures=$((failures + 1))
             fi
 
-            if [ "$tick" -lt 5 ]; then
+            if [ "$tick" -lt "$ticks" ]; then
               sleep 60
             fi
           done
