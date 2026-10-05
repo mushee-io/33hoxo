@@ -132,8 +132,8 @@ app.innerHTML = `
 <div class="app-frame">
   <aside class="sidebar">
     <div class="side-brand">
-      <div class="brand-mark">33</div>
-      <div><strong>33HOXO</strong><span>Confidential Markets</span></div>
+      <img class="side-logo" src="/hoxo-logo.svg" alt="HOXO" />
+      <span class="side-brand__sub">Confidential Markets</span>
     </div>
 
     <nav class="side-nav">
