@@ -32,6 +32,10 @@
       "destination": "/api/router?route=internal/reveal"
     },
     {
+      "source": "/api/internal/worker",
+      "destination": "/api/router?route=internal/worker"
+    },
+    {
       "source": "/api/settlement/submit",
       "destination": "/api/router?route=settlement/submit"
     },

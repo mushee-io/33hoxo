@@ -500,6 +500,38 @@ async function handleVerify(req, res) {
   }
 }
 
+async function handleWorker(req, res) {
+  try {
+    const { requireCron } = await import("../lib/server/auth.js");
+    const { revealCandidates, rowToRecord } =
+      await import("../lib/server/intentStore.js");
+    const { revealOne } = await import("../lib/server/revealOne.js");
+    const { reconcileExecutingSettlements } =
+      await import("../lib/server/reconcile.js");
+
+    requireCron(req);
+    if (req.method !== "GET" && req.method !== "POST") {
+      return methodNotAllowed(res, "GET, POST");
+    }
+
+    const revealRows = await revealCandidates(50);
+    const reveals = [];
+    for (const row of revealRows) {
+      reveals.push(await revealOne(rowToRecord(row)));
+    }
+
+    const settlements = await reconcileExecutingSettlements(50);
+
+    return res.status(200).json({
+      reveals,
+      settlements,
+      processed: reveals.length + settlements.length,
+    });
+  } catch (error) {
+    return errorResponse(res, error);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
 
@@ -531,6 +563,8 @@ export default async function handler(req, res) {
         return await handleVerify(req, res);
       case "internal/reveal":
         return await handleInternalReveal(req, res);
+      case "internal/worker":
+        return await handleWorker(req, res);
       case "settlement/submit":
         return await handleSettlementSubmit(req, res);
       case "settlement/status":
