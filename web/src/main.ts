@@ -231,12 +231,12 @@ app.innerHTML = `
             </div>
 
             <div class="form-grid">
-              <label><span>Market</span><input id="market" value="maryjane-demo-market" /></label>
+              <label><span>Market</span><input id="market" value="Aio4ducb79zaNvDjNUPtVZuLUGC3r8K6KPs7Pz8VCaBz" /></label>
               <label><span>Trader / wallet</span><input id="trader" value="demo-trader" /></label>
               <label><span>Outcome</span><select id="outcome"><option>YES</option><option>NO</option></select></label>
               <label><span>Action</span><select id="action"><option>BUY</option><option>SELL</option></select></label>
               <label><span>Limit price</span><div class="input-unit"><input id="price" type="number" min="1" max="9999" value="6200" /><em>bps</em></div></label>
-              <label><span>Quantity</span><div class="input-unit"><input id="quantity" value="500000000" /><em>base units</em></div></label>
+              <label><span>Quantity</span><div class="input-unit"><input id="quantity" value="1000000" /><em>base units</em></div></label>
               <label><span>Reveal delay</span><div class="input-unit"><input id="delay" type="number" min="15" max="600" value="45" /><em>seconds</em></div></label>
               <label><span>Collateral</span><input value="USDG" disabled /></label>
             </div>
