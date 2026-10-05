@@ -1063,4 +1063,6 @@ void (async () => {
 setState("IDLE");
 renderStats();
 renderHistory();
-switchView("overview");
+const requestedView=new URL(window.location.href).searchParams.get("view");
+const validViews=new Set<ViewName>(["overview","orders","explorer","adapters","shutter","proofs","developer","security","architecture"]);
+switchView(requestedView&&validViews.has(requestedView as ViewName)?requestedView as ViewName:"overview");

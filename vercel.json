@@ -4,6 +4,10 @@
   "outputDirectory": "public",
   "rewrites": [
     {
+      "source": "/console",
+      "destination": "/console.html"
+    },
+    {
       "source": "/api/health",
       "destination": "/api/router?route=health"
     },
