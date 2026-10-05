@@ -1,3 +1,4 @@
+const bgVideo=document.querySelector<HTMLVideoElement>("#bg-video");
 const menu=document.querySelector<HTMLElement>("#menu");
 const openButton=document.querySelector<HTMLButtonElement>("#menu-open");
 const closeButton=document.querySelector<HTMLButtonElement>("#menu-close");
@@ -26,3 +27,18 @@ void(async()=>{
     if(runtimeLabel)runtimeLabel.textContent=`Shutter ${shutter} · Solana ${solana}`;
   }catch{}
 })();
+
+if(bgVideo){
+  const loadVideo=()=>{
+    const src=bgVideo.dataset.src;
+    if(!src||bgVideo.src)return;
+    bgVideo.src=src;
+    bgVideo.load();
+    void bgVideo.play().catch(()=>{});
+  };
+  if("requestIdleCallback" in window){
+    (window as Window & {requestIdleCallback:(cb:()=>void,opts?:{timeout:number})=>number}).requestIdleCallback(loadVideo,{timeout:1800});
+  }else{
+    window.setTimeout(loadVideo,700);
+  }
+}
