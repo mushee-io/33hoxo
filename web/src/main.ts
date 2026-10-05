@@ -51,6 +51,10 @@ type StoredOrder = {
 type SolanaProvider = {
   publicKey?: { toString(): string } | null;
   connect(options?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: { toString(): string } }>;
+  signMessage?(
+    message: Uint8Array,
+    display?: "utf8" | "hex",
+  ): Promise<{ signature: Uint8Array } | Uint8Array>;
   signAndSendTransaction(transaction: Transaction | VersionedTransaction): Promise<{ signature: string } | string>;
 };
 
@@ -111,6 +115,12 @@ let countdownTimer: number | null = null;
 let revealTimer: number | null = null;
 let walletProvider: SolanaProvider | null = null;
 let walletAddress = "";
+let walletAuthCache: {
+  wallet: string;
+  challenge: string;
+  signature: string;
+  expiresAt: number;
+} | null = null;
 let currentView: ViewName = "overview";
 let shutterReachable = false;
 
@@ -550,6 +560,124 @@ async function connectWallet() {
   updateSettlementAvailability();
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+async function walletAuthHeaders(): Promise<Record<string,string>> {
+  if (!walletProvider || !walletAddress) await connectWallet();
+  if (!walletProvider || !walletAddress) throw new Error("Wallet connection failed.");
+  if (!walletProvider.signMessage) {
+    throw new Error("Connected wallet does not support message signing.");
+  }
+
+  const now = Date.now();
+  if (
+    walletAuthCache &&
+    walletAuthCache.wallet === walletAddress &&
+    walletAuthCache.expiresAt > now + 30_000
+  ) {
+    return {
+      "x-33hoxo-wallet": walletAuthCache.wallet,
+      "x-33hoxo-challenge": walletAuthCache.challenge,
+      "x-33hoxo-signature": walletAuthCache.signature,
+    };
+  }
+
+  const challengeResponse = await fetch(
+    `/api/auth/challenge?wallet=${encodeURIComponent(walletAddress)}`,
+    { cache: "no-store" },
+  );
+  const challengeBody = await challengeResponse.json().catch(() => ({})) as Record<string,unknown>;
+  if (!challengeResponse.ok) {
+    throw new Error(
+      typeof challengeBody.error === "string"
+        ? challengeBody.error
+        : "Could not create wallet authentication challenge.",
+    );
+  }
+
+  const message = String(challengeBody.message || "");
+  const challenge = String(challengeBody.challenge || "");
+  const expiresAt = Number(challengeBody.expiresAt || 0);
+  const signed = await walletProvider.signMessage(
+    new TextEncoder().encode(message),
+    "utf8",
+  );
+  const signatureBytes = signed instanceof Uint8Array ? signed : signed.signature;
+  const signature = bytesToBase64(signatureBytes);
+
+  walletAuthCache = { wallet: walletAddress, challenge, signature, expiresAt };
+
+  return {
+    "x-33hoxo-wallet": walletAddress,
+    "x-33hoxo-challenge": challenge,
+    "x-33hoxo-signature": signature,
+  };
+}
+
+async function persistSealedIntent(sealed: ConfidentialEnvelopeV1): Promise<boolean> {
+  if (!walletAddress) {
+    if (runtimeConfig.environment === "production") {
+      await connectWallet();
+    } else {
+      return false;
+    }
+  }
+
+  try {
+    const auth = await walletAuthHeaders();
+    const response = await fetch("/api/v1/intents", {
+      method: "POST",
+      headers: {
+        ...auth,
+        "content-type": "application/json",
+        accept: "application/json",
+      },
+      body: JSON.stringify(sealed),
+    });
+    const body = await response.json().catch(() => ({})) as Record<string,unknown>;
+    if (!response.ok) {
+      throw new Error(
+        typeof body.error === "string"
+          ? body.error
+          : "Persistent intent submission failed.",
+      );
+    }
+    return true;
+  } catch (error) {
+    if (runtimeConfig.environment === "production") throw error;
+    console.warn("33HOXO persistence unavailable; keeping staging intent local.", error);
+    return false;
+  }
+}
+
+async function syncServerReveal(commitment: string): Promise<boolean> {
+  if (!walletAddress) return false;
+  try {
+    const auth = await walletAuthHeaders();
+    const response = await fetch(
+      `/api/v1/intents/${encodeURIComponent(commitment)}/reveal`,
+      { method: "POST", headers: auth },
+    );
+    const body = await response.json().catch(() => ({})) as Record<string,unknown>;
+    if (!response.ok && response.status !== 202) {
+      throw new Error(
+        typeof body.error === "string"
+          ? body.error
+          : "Server reveal verification failed.",
+      );
+    }
+    return body.status === "VERIFIED";
+  } catch (error) {
+    if (runtimeConfig.environment === "production") throw error;
+    console.warn("33HOXO server reveal sync unavailable in staging.", error);
+    return false;
+  }
+}
+
 function updateSettlementAvailability() {
   if (state !== "VERIFIED" || !revealed) return;
   if (walletAddress) {
@@ -607,14 +735,54 @@ async function settleVerifiedIntent() {
   const signature = typeof sent === "string" ? sent : sent.signature;
   if (!signature) throw new Error("Wallet did not return a signature.");
 
-  setState("EXECUTING", "Transaction submitted. Waiting for Solana confirmation…");
+  setState("EXECUTING", "Transaction submitted. Registering settlement proof…");
   settleButton.textContent = "Confirming…";
+
+  let backendRegistered = false;
+  try {
+    const auth = await walletAuthHeaders();
+    const submit = await fetch("/api/settlement/submit", {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ commitment: envelope.commitment, signature }),
+    });
+    const submitBody = await submit.json().catch(() => ({})) as Record<string,unknown>;
+    if (!submit.ok) {
+      throw new Error(
+        typeof submitBody.error === "string"
+          ? submitBody.error
+          : "Could not register settlement signature.",
+      );
+    }
+    backendRegistered = true;
+  } catch (error) {
+    if (runtimeConfig.environment === "production") throw error;
+    console.warn("Backend settlement registration unavailable; using staging RPC confirmation.", error);
+  }
 
   const started = Date.now();
   while (Date.now() - started < 60_000) {
-    const result = await solana.getSignatureStatus(signature, { searchTransactionHistory: true });
-    if (result.value?.err) throw new Error("Solana transaction failed.");
-    if (["confirmed","finalized"].includes(result.value?.confirmationStatus || "")) {
+    let confirmed = false;
+
+    if (backendRegistered) {
+      const auth = await walletAuthHeaders();
+      const statusResponse = await fetch("/api/settlement/status", {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ commitment: envelope.commitment, signature }),
+      });
+      const statusBody = await statusResponse.json().catch(() => ({})) as Record<string,unknown>;
+      if (statusResponse.status === 409 && statusBody.status === "FAILED") {
+        throw new Error("Solana transaction failed.");
+      }
+      confirmed = statusResponse.ok && statusBody.status === "CONFIRMED";
+    } else {
+      const result = await solana.getSignatureStatus(signature, { searchTransactionHistory: true });
+      if (result.value?.err) throw new Error("Solana transaction failed.");
+      confirmed = ["confirmed","finalized"].includes(result.value?.confirmationStatus || "");
+    }
+
+    if (confirmed) {
       setState("EXECUTED", `Mary Jane settlement confirmed on Solana ${runtimeConfig.solanaCluster}.`);
       $("settlementStatus").textContent = `Confirmed on Solana ${runtimeConfig.solanaCluster}`;
       settleButton.textContent = "Settled";
@@ -684,6 +852,7 @@ async function attemptReveal() {
     $("revealedAction").textContent = revealed.action;
     $("revealedPrice").textContent = revealed.priceBps != null ? `${revealed.priceBps} bps` : "Market";
     $("revealedQuantity").textContent = revealed.quantityBaseUnits;
+    await syncServerReveal(envelope.commitment);
     patchHistory(envelope.commitment, { status: "VERIFIED", intent: revealed });
     updateSettlementAvailability();
     if (revealTimer) window.clearInterval(revealTimer);
@@ -709,6 +878,13 @@ sealButton.addEventListener("click", async () => {
   solanaProofLink.classList.add("hidden");
 
   try {
+    if (runtimeConfig.environment === "production" && !walletAddress) {
+      await connectWallet();
+    }
+    if (runtimeConfig.environment === "production") {
+      ($<HTMLInputElement>("trader")).value = walletAddress;
+    }
+
     const now = Math.floor(Date.now()/1000);
     const delay = Math.max(15, Number(($<HTMLInputElement>("delay")).value || 45));
     const revealAt = now + delay;
@@ -751,7 +927,13 @@ sealButton.addEventListener("click", async () => {
       },
     });
 
-    setState("SEALED", "Real Shutter ciphertext created.");
+    const persisted = await persistSealedIntent(envelope);
+    setState(
+      "SEALED",
+      persisted
+        ? "Real Shutter ciphertext created and persisted to the 33HOXO intent network."
+        : "Real Shutter ciphertext created. Staging persistence is not configured.",
+    );
     upsertHistory({
       commitment: envelope.commitment,
       envelope,
