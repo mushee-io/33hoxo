@@ -77,7 +77,7 @@ type RuntimeConfig = {
 
 let runtimeConfig: RuntimeConfig = {
   environment: "staging",
-  shutterNetwork: "chiado",
+  shutterNetwork: "gnosis",
   solanaCluster: "devnet",
   mainnetEnabled: false,
   maxMainnetQuantityBaseUnits: "1000000",
@@ -151,7 +151,7 @@ app.innerHTML = `
     </nav>
 
     <div class="side-foot">
-      <div id="sideNetwork" class="mini-status"><i></i> Chiado checking</div>
+      <div id="sideNetwork" class="mini-status"><i></i> Gnosis checking</div>
       <span id="runtimeLabel">Protocol v1 · Solana Devnet</span>
     </div>
   </aside>
@@ -180,7 +180,7 @@ app.innerHTML = `
         </div>
 
         <div class="stat-grid">
-          <div class="stat-card"><span>Shutter network</span><strong id="statNetwork">Checking</strong><small>Chiado threshold encryption</small></div>
+          <div class="stat-card"><span>Shutter network</span><strong id="statNetwork">Checking</strong><small>Gnosis threshold encryption</small></div>
           <div class="stat-card"><span>Stored intents</span><strong id="statIntents">0</strong><small>Local protocol history</small></div>
           <div class="stat-card"><span>Verified</span><strong id="statVerified">0</strong><small>Commitment matched</small></div>
           <div class="stat-card"><span>Executed</span><strong id="statExecuted">0</strong><small>Settlement confirmed</small></div>
@@ -313,7 +313,7 @@ app.innerHTML = `
       <section class="view hidden" data-view-panel="shutter">
         <div class="page-head compact-head"><div><span class="kicker">THRESHOLD ENCRYPTION</span><h1>Shutter Network</h1><p>Live connectivity and confidentiality status for the development deployment.</p></div></div>
         <div class="stat-grid">
-          <div class="stat-card"><span>Network</span><strong id="shutterNetworkName">Chiado</strong><small>Time-triggered reveal</small></div>
+          <div class="stat-card"><span>Network</span><strong id="shutterNetworkName">Gnosis</strong><small>Time-triggered reveal</small></div>
           <div class="stat-card"><span>API</span><strong id="shutterApiState">Checking</strong><small>Same-origin Vercel proxy</small></div>
           <div class="stat-card"><span>Latest eon</span><strong id="latestEon">—</strong><small>From last sealed intent</small></div>
           <div class="stat-card"><span>Successful reveals</span><strong id="revealCount">0</strong><small>Local history</small></div>
