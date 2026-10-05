@@ -1,0 +1,48 @@
+name: 33HOXO Worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: 33hoxo-worker
+  cancel-in-progress: false
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Run worker every minute
+        shell: bash
+        env:
+          WORKER_URL: https://33hoxo-hkul.vercel.app/api/internal/worker
+        run: |
+          set -u
+          failures=0
+
+          get_oidc_token() {
+            curl -fsSL               -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"               "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=33hoxo-worker"               | jq -r '.value'
+          }
+
+          for tick in 1 2 3 4 5; do
+            token="$(get_oidc_token)"
+
+            if ! curl -fsS               --retry 2               --retry-delay 2               --max-time 45               -H "Authorization: Bearer $token"               "$WORKER_URL"; then
+              failures=$((failures + 1))
+            fi
+
+            if [ "$tick" -lt 5 ]; then
+              sleep 60
+            fi
+          done
+
+          if [ "$failures" -ge 5 ]; then
+            echo "All worker calls failed."
+            exit 1
+          fi

@@ -12,8 +12,15 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md", "docs", "migrations"],
-  "engines": { "node": "22.x" },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "migrations"
+  ],
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "build": "npm run build:sdk && npm run build:web",
     "build:sdk": "tsc -p tsconfig.build.json",
@@ -27,7 +34,8 @@
     "@shutter-network/shutter-sdk": "0.0.2",
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "jose": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",

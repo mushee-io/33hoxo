@@ -348,11 +348,11 @@ async function handleReveal(req, res) {
 
 async function handleInternalReveal(req, res) {
   try {
-    const { requireCron } = await import("../lib/server/auth.js");
+    const { requireWorkerAuth } = await import("../lib/server/auth.js");
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
-    requireCron(req);
+    await requireWorkerAuth(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
