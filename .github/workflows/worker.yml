@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: 33hoxo-worker
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   worker:
