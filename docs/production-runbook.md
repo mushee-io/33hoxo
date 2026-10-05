@@ -1,41 +1,51 @@
 # 33HOXO Production Runbook
 
-## What is already built
+## Built
 
+- persistent Neon/Postgres intent network
+- wallet-signed first-party authentication
+- owner-bound cancellation, reveal and settlement
+- API-key authentication for trusted external integrators
+- on-demand server reveal plus background reveal worker
 - production Mary Jane settlement routing
-- Chiado and Gnosis Shutter configuration
-- persistent Postgres/Neon intent API
-- reveal worker endpoint
-- Solana settlement reconciliation endpoint
-- external hosted SDK transport
-- API-key authentication
+- Chiado/Gnosis Shutter switching
+- hosted SDK transport
 - mainnet-beta kill switch, quantity cap and allowlists
+- production readiness endpoint
 
-## 1. Create the production database
+## 1. Database
 
-Create a Neon/Postgres database and run:
+Create Neon/Postgres and run:
 
 `migrations/001_production.sql`
 
-Then set:
+Set:
 
 `DATABASE_URL=...`
 
-## 2. Secure external API access
+## 2. Wallet auth
 
-Set one or more comma-separated API keys:
+Generate a strong random secret and set:
+
+`HOXO_AUTH_SECRET=...`
+
+The browser obtains a short-lived signed challenge, asks the connected Solana wallet to sign it, and sends the proof to write/cancel/reveal/settlement routes.
+
+## 3. External API keys
+
+For trusted SDK/server integrations:
 
 `HOXO_API_KEYS=key-one,key-two`
 
-In `HOXO_ENV=production`, the external `/api/v1/intents` routes require a configured Bearer key.
+This is separate from end-user wallet authentication.
 
-## 3. Run the reveal worker
+## 4. Background reveal
 
 Set:
 
-`CRON_SECRET=<strong random value>`
+`CRON_SECRET=...`
 
-Call:
+The worker endpoint is:
 
 `GET /api/internal/reveal`
 
@@ -43,28 +53,37 @@ with:
 
 `Authorization: Bearer <CRON_SECRET>`
 
-on a recurring schedule. One-minute scheduling is appropriate for short reveal windows.
+Active users can also call the owner-authenticated per-intent reveal endpoint after reveal time, so browser settlement does not depend on the cron firing first.
 
-## 4. Production Shutter
+### Vercel Hobby limitation
 
-For staging:
+The current Vercel team is on Hobby. Hobby Cron is only suitable for daily scheduling; 33HOXO needs minute-level background reveals for production. Either:
+
+- upgrade the Vercel project/team to Pro and schedule the reveal worker every minute; or
+- run the same authenticated endpoint from an external scheduler/worker every minute.
+
+Do not rely on once-daily Hobby Cron for market execution.
+
+## 5. Shutter production
+
+Staging:
 
 ```
+HOXO_ENV=staging
 SHUTTER_NETWORK=chiado
 ```
 
-For Shutter production:
+Production:
 
 ```
+HOXO_ENV=production
 SHUTTER_NETWORK=gnosis
-SHUTTER_API_KEY=<if required for your account/deployment>
+SHUTTER_API_KEY=<if required>
 ```
 
-33HOXO uses the production Shutter API at `https://shutter-api.shutter.network`.
+Each envelope stores its own Shutter network, so older Chiado commitments can still reveal after production switches to Gnosis.
 
-## 5. Mary Jane production settlement
-
-Development:
+## 6. Solana staging
 
 ```
 SOLANA_CLUSTER=devnet
@@ -72,58 +91,54 @@ SOLANA_RPC_URL=https://api.devnet.solana.com
 MARYJANE_ORDER_PLACE_URL=https://maryjane-blue.vercel.app/api/order-place
 ```
 
-Mainnet requires a separate real Mary Jane mainnet backend:
+## 7. Mainnet beta
 
-```
-MARYJANE_MAINNET_ORDER_PLACE_URL=https://...
-```
+First provide a real Mary Jane mainnet order endpoint:
 
-Do not point a mainnet 33HOXO deployment at the Devnet Mary Jane endpoint.
+`MARYJANE_MAINNET_ORDER_PLACE_URL=https://...`
 
-## 6. Enable mainnet beta
-
-Mainnet remains disabled unless both flags are present:
-
-```
-ENABLE_MAINNET=true
-MAINNET_ACK=I_UNDERSTAND_REAL_FUNDS
-```
-
-Also set:
+Then configure:
 
 ```
 SOLANA_CLUSTER=mainnet-beta
 SOLANA_RPC_URL=<production RPC>
 MAINNET_MAX_QUANTITY_BASE_UNITS=<small initial cap>
 MAINNET_ALLOWED_ADAPTERS=maryjane-solana-v1
-MAINNET_ALLOWED_MARKETS=<comma-separated production market IDs>
+MAINNET_ALLOWED_MARKETS=<specific production market IDs>
 ```
 
-Start with a tiny cap and an explicit market allowlist.
+Only after a successful staged test enable:
 
-## 7. External SDK
-
-Install/package the repository and use:
-
-```ts
-import { createHosted33HoxoClient } from "@mushee/33hoxo";
-
-const hoxo = createHosted33HoxoClient({
-  baseUrl: "https://your-33hoxo-domain",
-  apiKey: process.env.HOXO_API_KEY,
-  shutterNetwork: "gnosis",
-});
-
-const sealed = await hoxo.sealIntent(intent);
+```
+ENABLE_MAINNET=true
+MAINNET_ACK=I_UNDERSTAND_REAL_FUNDS
 ```
 
-## Remaining manual actions
+## 8. Readiness
 
-The code is ready for these operator-owned steps:
+Open:
 
-1. create database and run migration;
-2. set production secrets/env vars;
-3. configure the reveal scheduler;
-4. provide Mary Jane's real mainnet order endpoint;
-5. fund/test the production wallet with deliberately small value;
-6. enable the mainnet switch only after a successful staged transaction.
+`GET /api/readiness`
+
+Production is not considered ready until it returns:
+
+`"ready": true`
+
+No secret values are returned, only missing/configured checks.
+
+## 9. Final launch sequence
+
+1. database migration
+2. staging env vars
+3. wallet-authenticated persistent intent
+4. server reveal
+5. Mary Jane Devnet settlement
+6. background reveal scheduler
+7. switch Shutter to Gnosis
+8. repeat on Solana Devnet
+9. provide Mary Jane mainnet backend
+10. configure tiny mainnet limits and allowlist
+11. enable mainnet gate
+12. one deliberately small mainnet transaction
+13. inspect logs/readiness
+14. gradually raise limits

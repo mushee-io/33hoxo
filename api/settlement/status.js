@@ -1,12 +1,12 @@
 import { Connection } from "@solana/web3.js";
-import { requireApiKey } from "../../lib/server/auth.js";
+import { authorizeOwnedIntent } from "../../lib/server/auth.js";
 import { runtimeConfig } from "../../lib/server/runtime.js";
 import { getIntent, markExecuted } from "../../lib/server/intentStore.js";
+import { publicIntent } from "../../lib/server/publicIntent.js";
 
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
   try {
-    requireApiKey(req);
     if (req.method !== "POST") {
       res.setHeader("allow", "POST");
       return res.status(405).json({ error: "Method not allowed." });
@@ -20,6 +20,8 @@ export default async function handler(req, res) {
 
     const record = await getIntent(commitment);
     if (!record) return res.status(404).json({ error: "Unknown commitment." });
+    authorizeOwnedIntent(req, record);
+
     if (record.state !== "EXECUTING" || record.transactionId !== signature) {
       return res.status(409).json({
         error: "Settlement signature is not registered for this commitment.",
@@ -46,7 +48,7 @@ export default async function handler(req, res) {
         status: "CONFIRMED",
         signature,
         cluster: config.solanaCluster,
-        intent: executed,
+        intent: publicIntent(executed),
       });
     }
 
