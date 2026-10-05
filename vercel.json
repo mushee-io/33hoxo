@@ -10,6 +10,7 @@
     { "source": "/api/shutter", "destination": "/api/router?route=shutter" },
     { "source": "/api/maryjane", "destination": "/api/router?route=maryjane" },
     { "source": "/api/internal/reveal", "destination": "/api/router?route=internal/reveal" },
+    { "source": "/api/internal/migrate", "destination": "/api/router?route=internal/migrate" },
     { "source": "/api/settlement/submit", "destination": "/api/router?route=settlement/submit" },
     { "source": "/api/settlement/status", "destination": "/api/router?route=settlement/status" },
     { "source": "/api/v1/intents", "destination": "/api/router?route=v1/intents" },
