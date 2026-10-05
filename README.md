@@ -1,4 +1,4 @@
-# 33HOXO — Shutter Confidential Markets
+# 33HOXO - Shutter Confidential Markets
 
 33HOXO is reusable confidential-market infrastructure powered by Shutter threshold encryption.
 
