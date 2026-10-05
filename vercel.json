@@ -52,6 +52,10 @@
       "destination": "/api/router?route=v1/intent/reveal&commitment=:commitment"
     },
     {
+      "source": "/api/v1/intents/:commitment/verify",
+      "destination": "/api/router?route=v1/intent/verify&commitment=:commitment"
+    },
+    {
       "source": "/api/v1/intents/:commitment",
       "destination": "/api/router?route=v1/intent&commitment=:commitment"
     }

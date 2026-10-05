@@ -472,6 +472,34 @@ async function handleSettlementStatus(req, res) {
 }
 
 
+async function handleVerify(req, res) {
+  if (req.method !== "POST") return methodNotAllowed(res, "POST");
+  try {
+    const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
+    const { getIntent, markVerified } =
+      await import("../lib/server/intentStore.js");
+    const { verifyRevealedForRecord } =
+      await import("../lib/server/verifyRevealed.js");
+    const { publicIntent } = await import("../lib/server/publicIntent.js");
+
+    const commitment = String(req.query.commitment || "");
+    const record = await getIntent(commitment);
+    if (!record) {
+      return res.status(404).json({ error: "Unknown commitment." });
+    }
+    authorizeOwnedIntent(req, record);
+
+    const revealedIntent = req.body?.intent;
+    verifyRevealedForRecord(record, revealedIntent);
+    await markVerified(commitment, revealedIntent);
+
+    const updated = await getIntent(commitment);
+    return res.status(200).json(publicIntent(updated));
+  } catch (error) {
+    return errorResponse(res, error);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
 
@@ -499,6 +527,8 @@ export default async function handler(req, res) {
         return await handleCancel(req, res);
       case "v1/intent/reveal":
         return await handleReveal(req, res);
+      case "v1/intent/verify":
+        return await handleVerify(req, res);
       case "internal/reveal":
         return await handleInternalReveal(req, res);
       case "settlement/submit":

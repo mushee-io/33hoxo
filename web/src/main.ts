@@ -654,26 +654,33 @@ async function persistSealedIntent(sealed: ConfidentialEnvelopeV1): Promise<bool
   }
 }
 
-async function syncServerReveal(commitment: string): Promise<boolean> {
+async function syncServerVerification(
+  commitment: string,
+  revealedIntent: ConfidentialIntentV1,
+): Promise<boolean> {
   if (!walletAddress) return false;
   try {
     const auth = await walletAuthHeaders();
     const response = await fetch(
-      `/api/v1/intents/${encodeURIComponent(commitment)}/reveal`,
-      { method: "POST", headers: auth },
+      `/api/v1/intents/${encodeURIComponent(commitment)}/verify`,
+      {
+        method: "POST",
+        headers: { ...auth, "content-type": "application/json" },
+        body: JSON.stringify({ intent: revealedIntent }),
+      },
     );
     const body = await response.json().catch(() => ({})) as Record<string,unknown>;
-    if (!response.ok && response.status !== 202) {
+    if (!response.ok) {
       throw new Error(
         typeof body.error === "string"
           ? body.error
-          : "Server reveal verification failed.",
+          : "Server commitment verification failed.",
       );
     }
-    return body.status === "VERIFIED";
+    return body.state === "VERIFIED";
   } catch (error) {
     if (runtimeConfig.environment === "production") throw error;
-    console.warn("33HOXO server reveal sync unavailable in staging.", error);
+    console.warn("33HOXO server verification sync unavailable in staging.", error);
     return false;
   }
 }
@@ -852,7 +859,7 @@ async function attemptReveal() {
     $("revealedAction").textContent = revealed.action;
     $("revealedPrice").textContent = revealed.priceBps != null ? `${revealed.priceBps} bps` : "Market";
     $("revealedQuantity").textContent = revealed.quantityBaseUnits;
-    await syncServerReveal(envelope.commitment);
+    await syncServerVerification(envelope.commitment, revealed);
     patchHistory(envelope.commitment, { status: "VERIFIED", intent: revealed });
     updateSettlementAvailability();
     if (revealTimer) window.clearInterval(revealTimer);
