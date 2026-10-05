@@ -1,5 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/health", "destination": "/api/router?route=health" },
+    { "source": "/api/config", "destination": "/api/router?route=config" },
+    { "source": "/api/readiness", "destination": "/api/router?route=readiness" },
+    { "source": "/api/auth/challenge", "destination": "/api/router?route=auth/challenge" },
+    { "source": "/api/shutter", "destination": "/api/router?route=shutter" },
+    { "source": "/api/maryjane", "destination": "/api/router?route=maryjane" },
+    { "source": "/api/internal/reveal", "destination": "/api/router?route=internal/reveal" },
+    { "source": "/api/settlement/submit", "destination": "/api/router?route=settlement/submit" },
+    { "source": "/api/settlement/status", "destination": "/api/router?route=settlement/status" },
+    { "source": "/api/v1/intents", "destination": "/api/router?route=v1/intents" },
+    { "source": "/api/v1/intents/:commitment/cancel", "destination": "/api/router?route=v1/intent/cancel&commitment=:commitment" },
+    { "source": "/api/v1/intents/:commitment/reveal", "destination": "/api/router?route=v1/intent/reveal&commitment=:commitment" },
+    { "source": "/api/v1/intents/:commitment", "destination": "/api/router?route=v1/intent&commitment=:commitment" }
+  ]
 }
