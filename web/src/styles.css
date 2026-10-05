@@ -49,20 +49,9 @@ button{cursor:pointer}
   backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
 }
-.side-brand{display:flex;align-items:center;gap:10px;padding:5px 8px 22px}
-.brand-mark{
-  width:38px;height:38px;border-radius:999px;display:grid;place-items:center;
-  background:#0a0a0a;color:#fff;font-weight:700;font-size:13px;letter-spacing:-.05em;
-}
-.side-brand strong,.side-brand span{display:block}
-.side-brand strong{
-  font-family:"Source Serif 4",Georgia,serif;
-  font-style:italic;
-  font-size:19px;
-  font-weight:600;
-  letter-spacing:-.075em;
-}
-.side-brand span{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:-.01em}
+.side-brand{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:4px 8px 22px}
+.side-logo{display:block;width:118px;height:auto;object-fit:contain}
+.side-brand__sub{display:block;font-size:10px;color:var(--muted);letter-spacing:-.01em}
 .side-nav{display:flex;flex-direction:column;gap:4px}
 .nav-button{
   border:0;background:transparent;color:#696969;border-radius:999px;padding:10px 12px;
@@ -332,7 +321,7 @@ input:disabled{color:#969696;background:#f8f8f8}
 @media(max-width:1050px){
   .app-frame{grid-template-columns:74px 1fr}
   .workspace::before,.workspace::after,.console-ambient{left:74px}
-  .side-brand>div:not(.brand-mark),.nav-button{font-size:0}.nav-button span{font-size:14px}.side-foot span{display:none}
+  .nav-button{font-size:0}.nav-button span{font-size:14px}.side-foot span{display:none}.side-logo{width:92px}.side-brand__sub{display:none}
   .overview-grid,.grid,.proof-grid{grid-template-columns:1fr}.adapter-grid{grid-template-columns:repeat(2,1fr)}.stat-grid{grid-template-columns:repeat(2,1fr)}
 }
 @media(max-width:810px){
