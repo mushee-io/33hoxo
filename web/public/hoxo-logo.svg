@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title desc">
+  <title id="title">HOXO</title>
+  <desc id="desc">Rounded black HOXO symbol</desc>
+  <g fill="none" stroke="#1d1d1d" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M92 46 L86 194 M188 42 C186 84 192 116 194 145 L187 196 M88 119 C121 119 148 132 190 130" stroke-width="44"/>
+    <circle cx="274" cy="160" r="41" fill="#1d1d1d" stroke="none"/>
+    <path d="M356 100 L433 181 M437 101 L355 181" stroke-width="43"/>
+    <circle cx="520" cy="160" r="41" fill="#1d1d1d" stroke="none"/>
+  </g>
+</svg>
