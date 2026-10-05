@@ -46,8 +46,8 @@ button{cursor:pointer}
   padding:18px 14px;
   border-right:1px solid var(--border-soft);
   background:rgba(255,255,255,.88);
-  backdrop-filter:blur(28px);
-  -webkit-backdrop-filter:blur(28px);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
 }
 .side-brand{display:flex;align-items:center;gap:10px;padding:5px 8px 22px}
 .brand-mark{
@@ -92,7 +92,7 @@ button{cursor:pointer}
   position:fixed;
   inset:0 0 0 220px;
   z-index:-3;
-  background-image:url("https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260626_041422_4a459e05-abce-4150-9fb7-4ededc423cd1.png&w=1280&q=85");
+  background-image:url("https://res.cloudinary.com/kbuxvbsa/image/upload/f_auto,q_auto/v1791199711/33hoxo/console/alwayzz-bg.webp");
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
@@ -142,8 +142,8 @@ button{cursor:pointer}
   position:sticky;top:0;z-index:30;
   border-bottom:1px solid var(--border-soft);
   background:rgba(255,255,255,.72);
-  backdrop-filter:blur(22px);
-  -webkit-backdrop-filter:blur(22px);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
 }
 .crumb{font-size:12px;color:#8b8b8b;letter-spacing:-.02em}
 .crumb b{color:#0a0a0a;font-weight:600}
