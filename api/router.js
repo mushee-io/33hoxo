@@ -352,7 +352,7 @@ async function handleInternalReveal(req, res) {
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
-    await requireWorkerAuth(req);
+    requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
@@ -501,7 +501,7 @@ async function handleWorker(req, res) {
     const { reconcileExecutingSettlements } =
       await import("../lib/server/reconcile.js");
 
-    requireCron(req);
+    await requireWorkerAuth(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
