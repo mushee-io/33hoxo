@@ -472,71 +472,6 @@ async function handleSettlementStatus(req, res) {
 }
 
 
-async function handleMigrate(req, res) {
-  if (req.method !== "POST" && req.method !== "GET") {
-    return methodNotAllowed(res, "GET, POST");
-  }
-  if (
-    process.env.HOXO_ENV !== "staging" ||
-    process.env.MIGRATION_ENABLED !== "true"
-  ) {
-    return res.status(404).json({ error: "Migration route disabled." });
-  }
-
-  try {
-    const { sql } = await import("../lib/server/db.js");
-    const db = sql();
-
-    await db`
-      CREATE TABLE IF NOT EXISTS confidential_intents (
-        commitment text PRIMARY KEY,
-        envelope jsonb NOT NULL,
-        state text NOT NULL CHECK (
-          state IN (
-            'WAITING','REVEALABLE','VERIFIED','EXECUTING','EXECUTED',
-            'CANCELLED','EXPIRED','INVALID','TAMPERED','SETTLEMENT_FAILED'
-          )
-        ),
-        accepted_at bigint NOT NULL,
-        updated_at bigint NOT NULL,
-        reveal_at bigint NOT NULL,
-        expires_at bigint,
-        owner_wallet text,
-        revealed_intent jsonb,
-        transaction_id text,
-        failure_code text
-      )
-    `;
-
-    await db`
-      ALTER TABLE confidential_intents
-      ADD COLUMN IF NOT EXISTS owner_wallet text
-    `;
-
-    await db`
-      CREATE INDEX IF NOT EXISTS confidential_intents_state_reveal_idx
-      ON confidential_intents (state, reveal_at)
-    `;
-
-    await db`
-      CREATE INDEX IF NOT EXISTS confidential_intents_updated_idx
-      ON confidential_intents (updated_at DESC)
-    `;
-
-    await db`
-      CREATE INDEX IF NOT EXISTS confidential_intents_owner_idx
-      ON confidential_intents (owner_wallet, accepted_at DESC)
-    `;
-
-    return res.status(200).json({
-      migrated: true,
-      schema: "001_production",
-    });
-  } catch (error) {
-    return errorResponse(res, error);
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
 
@@ -566,8 +501,6 @@ export default async function handler(req, res) {
         return await handleReveal(req, res);
       case "internal/reveal":
         return await handleInternalReveal(req, res);
-      case "internal/migrate":
-        return await handleMigrate(req, res);
       case "settlement/submit":
         return await handleSettlementSubmit(req, res);
       case "settlement/status":
