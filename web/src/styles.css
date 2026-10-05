@@ -114,7 +114,7 @@ button{cursor:pointer}
   top:6%;
   bottom:6%;
   width:var(--w);
-  border:2.5px solid #fcfaf8;
+  border:2.5px solid #fcfaf8;box-shadow:0 0 0 .6px rgba(0,0,0,.045);
   opacity:0;
   animation:line-pulse 5s ease-in-out infinite;
   animation-delay:var(--delay);
@@ -331,7 +331,7 @@ input:disabled{color:#969696;background:#f8f8f8}
 }
 @media(max-width:1050px){
   .app-frame{grid-template-columns:74px 1fr}
-  .workspace::before,.workspace::after,.console-ambient{inset-left:74px}
+  .workspace::before,.workspace::after,.console-ambient{left:74px}
   .side-brand>div:not(.brand-mark),.nav-button{font-size:0}.nav-button span{font-size:14px}.side-foot span{display:none}
   .overview-grid,.grid,.proof-grid{grid-template-columns:1fr}.adapter-grid{grid-template-columns:repeat(2,1fr)}.stat-grid{grid-template-columns:repeat(2,1fr)}
 }
