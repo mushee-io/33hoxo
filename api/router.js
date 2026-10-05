@@ -352,7 +352,8 @@ async function handleInternalReveal(req, res) {
     const { revealCandidates, rowToRecord } =
       await import("../lib/server/intentStore.js");
     const { revealOne } = await import("../lib/server/revealOne.js");
-    requireCron(req);
+    const stagingBypass = process.env.HOXO_ENV === "staging" && process.env.RECONCILE_NOW === "true";
+    if (!stagingBypass) requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
