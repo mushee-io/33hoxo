@@ -472,93 +472,6 @@ async function handleSettlementStatus(req, res) {
 }
 
 
-async function handleSelfTest(req, res) {
-  if (req.method !== "GET" && req.method !== "POST") {
-    return methodNotAllowed(res, "GET, POST");
-  }
-  if (
-    process.env.HOXO_ENV !== "staging" ||
-    process.env.SELFTEST_ENABLED !== "true"
-  ) {
-    return res.status(404).json({ error: "Self-test route disabled." });
-  }
-
-  try {
-    const { randomBytes } = await import("node:crypto");
-    const naclModule = await import("tweetnacl");
-    const bs58Module = await import("bs58");
-    const nacl = naclModule.default ?? naclModule;
-    const bs58 = bs58Module.default ?? bs58Module;
-
-    const { createWalletChallenge } =
-      await import("../lib/server/walletAuth.js");
-    const { authorizeIntentWrite } =
-      await import("../lib/server/auth.js");
-    const {
-      insertIntent,
-      getIntent,
-      cancelIntent,
-    } = await import("../lib/server/intentStore.js");
-
-    const keypair = nacl.sign.keyPair();
-    const wallet = bs58.encode(keypair.publicKey);
-    const challenge = createWalletChallenge(wallet);
-    const signatureBytes = nacl.sign.detached(
-      new TextEncoder().encode(challenge.message),
-      keypair.secretKey,
-    );
-    const signature = Buffer.from(signatureBytes).toString("base64");
-
-    const fakeReq = {
-      headers: {
-        "x-33hoxo-wallet": wallet,
-        "x-33hoxo-challenge": challenge.challenge,
-        "x-33hoxo-signature": signature,
-      },
-    };
-
-    const auth = authorizeIntentWrite(fakeReq);
-    const now = Math.floor(Date.now() / 1000);
-    const commitment = "0x" + randomBytes(32).toString("hex");
-
-    const envelope = {
-      version: 1,
-      scheme: "shutter-threshold-encryption",
-      application: "33hoxo-selftest",
-      sourceChain: "solana:devnet",
-      settlementAdapter: "maryjane-solana-v1",
-      market: "selftest-market",
-      commitment,
-      ciphertext: "0x01020304",
-      shutter: {
-        network: "chiado",
-        identity: "0x0102",
-        identityPrefix: "0x" + "11".repeat(32),
-        eon: 1,
-      },
-      createdAt: now,
-      revealAt: now + 300,
-      expiresAt: now + 900,
-    };
-
-    const inserted = await insertIntent(envelope, auth.ownerWallet);
-    const fetched = await getIntent(commitment);
-    const cancelled = await cancelIntent(commitment);
-
-    return res.status(200).json({
-      ok: true,
-      walletAuth: auth.ownerWallet === wallet,
-      inserted: inserted.commitment === commitment,
-      fetched: fetched?.commitment === commitment,
-      ownerBound: fetched?.ownerWallet === wallet,
-      cancelled: cancelled.state === "CANCELLED",
-      commitment,
-    });
-  } catch (error) {
-    return errorResponse(res, error);
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader("cache-control", "no-store");
 
@@ -588,8 +501,6 @@ export default async function handler(req, res) {
         return await handleReveal(req, res);
       case "internal/reveal":
         return await handleInternalReveal(req, res);
-      case "internal/selftest":
-        return await handleSelfTest(req, res);
       case "settlement/submit":
         return await handleSettlementSubmit(req, res);
       case "settlement/status":

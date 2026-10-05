@@ -32,10 +32,6 @@
       "destination": "/api/router?route=internal/reveal"
     },
     {
-      "source": "/api/internal/selftest",
-      "destination": "/api/router?route=internal/selftest"
-    },
-    {
       "source": "/api/settlement/submit",
       "destination": "/api/router?route=settlement/submit"
     },
