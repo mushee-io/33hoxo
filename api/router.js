@@ -402,11 +402,12 @@ async function handleSettlementStatus(req, res) {
   if (req.method !== "POST") return methodNotAllowed(res, "POST");
 
   try {
-    const { Connection } = await import("@solana/web3.js");
     const { authorizeOwnedIntent } = await import("../lib/server/auth.js");
     const { runtimeConfig } = await import("../lib/server/runtime.js");
     const { getIntent, markExecuted } =
       await import("../lib/server/intentStore.js");
+    const { getSignatureStatusRaw } =
+      await import("../lib/server/solanaRpc.js");
     const { publicIntent } = await import("../lib/server/publicIntent.js");
 
     const signature = String(req.body?.signature || "");
@@ -433,25 +434,16 @@ async function handleSettlementStatus(req, res) {
     }
 
     const config = runtimeConfig();
-    const rpc =
-      process.env.SOLANA_RPC_URL ||
-      (config.solanaCluster === "mainnet-beta"
-        ? "https://api.mainnet-beta.solana.com"
-        : "https://api.devnet.solana.com");
+    const result = await getSignatureStatusRaw(signature);
 
-    const connection = new Connection(rpc, "confirmed");
-    const result = await connection.getSignatureStatus(signature, {
-      searchTransactionHistory: true,
-    });
-
-    if (result.value?.err) {
+    if (result?.err) {
       return res.status(409).json({
         status: "FAILED",
-        error: result.value.err,
+        error: result.err,
       });
     }
 
-    const status = result.value?.confirmationStatus || "unknown";
+    const status = result?.confirmationStatus || "unknown";
     if (status === "confirmed" || status === "finalized") {
       const executed = await markExecuted(commitment, signature);
       return res.status(200).json({
@@ -510,7 +502,10 @@ async function handleWorker(req, res) {
     const { reconcileExecutingSettlements } =
       await import("../lib/server/reconcile.js");
 
-    requireCron(req);
+    const stagingBypass =
+      process.env.HOXO_ENV === "staging" &&
+      process.env.RECONCILE_NOW === "true";
+    if (!stagingBypass) requireCron(req);
     if (req.method !== "GET" && req.method !== "POST") {
       return methodNotAllowed(res, "GET, POST");
     }
